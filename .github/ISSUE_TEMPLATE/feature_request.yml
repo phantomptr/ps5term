@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Feature request
+description: An idea that would make PS5Term better
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea! Please check the open issues first in case someone already asked.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The task or situation, in your own words. What gets in the way today?
+      placeholder: "When I ..., I have to ..."
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+      description: How you imagine it working. A rough idea is fine.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Part of PS5Term
+      options:
+        - Terminal, tabs or split panes
+        - Built-in shell commands
+        - Linux, Alpine or other environments
+        - SSH or SFTP
+        - Keyboard, mouse or controller
+        - Settings or appearance
+        - Languages
+        - Something else
+    validations:
+      required: true
+  - type: dropdown
+    id: input
+    attributes:
+      label: How do you use PS5Term?
+      multiple: true
+      options:
+        - Controller
+        - USB keyboard
+        - USB mouse
+        - Remote Play
+        - SSH from a computer
+  - type: textarea
+    id: other
+    attributes:
+      label: Anything else
+      description: Other apps that do this well, screenshots, links.

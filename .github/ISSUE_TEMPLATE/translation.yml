@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Translation fix
+description: Wording that is wrong, unclear or cut off in your language
+labels: ["translation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping PS5Term read naturally in your language. One issue per screen or a
+        few related lines is perfect.
+  - type: dropdown
+    id: language
+    attributes:
+      label: Language
+      options:
+        - English
+        - 简体中文 (Chinese, Simplified)
+        - 繁體中文 (Chinese, Traditional)
+        - हिन्दी (Hindi)
+        - Español (Spanish)
+        - العربية (Arabic)
+        - বাংলা (Bengali)
+        - Polski (Polish)
+        - Português (Brasil)
+        - Русский (Russian)
+        - 日本語 (Japanese)
+        - Deutsch (German)
+        - Français (French)
+        - 한국어 (Korean)
+        - Türkçe (Turkish)
+        - Tiếng Việt (Vietnamese)
+        - Bahasa Indonesia (Indonesian)
+        - Italiano (Italian)
+        - ไทย (Thai)
+        - Magyar (Hungarian)
+        - فارسی (Persian)
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      placeholder: "e.g. Settings, the About screen, the bottom hint line"
+    validations:
+      required: true
+  - type: textarea
+    id: shown
+    attributes:
+      label: What PS5Term shows
+      description: Copy the text, or attach a photo of the screen.
+    validations:
+      required: true
+  - type: textarea
+    id: better
+    attributes:
+      label: What it should say
+      description: Your suggested wording. Short is best; some places have little room.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: PS5Term version
+      placeholder: "e.g. 00.001.003 (Settings → About PS5Term)"

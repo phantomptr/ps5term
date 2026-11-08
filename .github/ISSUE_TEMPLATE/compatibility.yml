@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Firmware or console report
+description: Tell us how PS5Term runs on your firmware and console, even if everything works
+labels: ["compatibility"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        PS5Term is tested on firmware 13.60 on a launch PS5 so far. Reports from other firmware
+        and models, good or bad, help most.
+  - type: input
+    id: firmware
+    attributes:
+      label: PS5 firmware
+      placeholder: "e.g. 9.60"
+    validations:
+      required: true
+  - type: dropdown
+    id: model
+    attributes:
+      label: Console
+      options:
+        - Launch model (CFI-10xx / CFI-11xx)
+        - Slim (CFI-20xx)
+        - Pro (CFI-70xx)
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: PS5Term version
+      placeholder: "e.g. 00.001.003 (Settings → About PS5Term)"
+    validations:
+      required: true
+  - type: textarea
+    id: loader
+    attributes:
+      label: Jailbreak and loader
+      description: How you launch homebrew, and other payloads running (kstuff, etaHEN, ...).
+  - type: checkboxes
+    id: works
+    attributes:
+      label: What works
+      description: Tick what you tried and saw working.
+      options:
+        - label: The app opens and the built-in shell runs commands
+        - label: Keyboard, mouse or controller input
+        - label: SSH (ps5term@ or linux@) from a computer
+        - label: SFTP file transfer
+        - label: Start Linux
+        - label: Linux network (curl https://example.com)
+        - label: Expand storage
+        - label: Alpine and apk
+  - type: textarea
+    id: problems
+    attributes:
+      label: What didn't work
+      description: Error text, or a photo of the screen. Leave empty if everything worked.

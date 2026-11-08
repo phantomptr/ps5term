@@ -48,12 +48,40 @@ body:
       options:
         - Built-in shell
         - Linux shell
+        - Alpine (apk)
         - SSH or SFTP from a computer
         - Settings or the on-screen keyboard
         - Starting the app
         - Something else
     validations:
       required: true
+  - type: dropdown
+    id: language
+    attributes:
+      label: App language
+      description: Settings → Language. Leave on English if you didn't change it.
+      options:
+        - English
+        - 简体中文 (Chinese, Simplified)
+        - 繁體中文 (Chinese, Traditional)
+        - हिन्दी (Hindi)
+        - Español (Spanish)
+        - العربية (Arabic)
+        - বাংলা (Bengali)
+        - Polski (Polish)
+        - Português (Brasil)
+        - Русский (Russian)
+        - 日本語 (Japanese)
+        - Deutsch (German)
+        - Français (French)
+        - 한국어 (Korean)
+        - Türkçe (Turkish)
+        - Tiếng Việt (Vietnamese)
+        - Bahasa Indonesia (Indonesian)
+        - Italiano (Italian)
+        - ไทย (Thai)
+        - Magyar (Hungarian)
+        - فارسی (Persian)
   - type: dropdown
     id: input
     attributes:
