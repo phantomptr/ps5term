@@ -1,0 +1,91 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Bug report
+description: Something isn't working as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. Reports from firmware other than 13.60 are especially welcome.
+        Please don't post your SSH password or anything private.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+      placeholder: "When I ..."
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: PS5Term version
+      placeholder: "e.g. 00.001.001 (Settings → About PS5Term)"
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: PS5 firmware
+      placeholder: "e.g. 13.60"
+    validations:
+      required: true
+  - type: dropdown
+    id: model
+    attributes:
+      label: Console
+      options:
+        - Launch model (CFI-10xx / CFI-11xx)
+        - Slim (CFI-20xx)
+        - Pro (CFI-70xx)
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where
+      options:
+        - Built-in shell
+        - Linux shell
+        - SSH or SFTP from a computer
+        - Settings or the on-screen keyboard
+        - Starting the app
+        - Something else
+    validations:
+      required: true
+  - type: dropdown
+    id: input
+    attributes:
+      label: What were you using?
+      multiple: true
+      options:
+        - Controller
+        - USB keyboard
+        - USB mouse
+        - Remote Play
+        - SSH client (say which in the description)
+  - type: textarea
+    id: loader
+    attributes:
+      label: Jailbreak, loader and other payloads
+      description: How you launch homebrew, and anything else running (kstuff, etaHEN, ShadowMount+, ...), with versions if you know them.
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. ...\n2. ...\n3. ..."
+  - type: textarea
+    id: output
+    attributes:
+      label: Error text or output
+      description: Paste any error message shown on screen or in your SSH client. A photo of the screen is fine too.
+      render: shell
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: How often does it happen?
+      options:
+        - Once
+        - Sometimes
+        - Every time

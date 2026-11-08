@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+blank_issues_enabled: false
+contact_links:
+  - name: Question
+    url: https://discord.gg/fzK3xddtrM
+    about: Ask on Discord. Setup, controls and SSH are explained on https://ps5term.phantomptr.com.
+  - name: Security problem
+    url: https://github.com/phantomptr/ps5term/security/advisories/new
+    about: Report it privately, not as a public issue (see SECURITY.md).
