@@ -12,6 +12,8 @@
   "chips.colour.title": "Renk ve Unicode",
   "chips.input.text": "Klavye, fare ya da kumanda: her işlem her biriyle çalışır.",
   "chips.input.title": "Tek başına her giriş",
+  "chips.lang.text": "Uygulama, İngilizceden Rusçaya 11 dilde PS5'inin dilini izler; bu sitede 21 dil var.",
+  "chips.lang.title": "Kendi dilinde",
   "chips.native.text": "PS5'in kendi dosyalarında ls, cat, cp, grep, sha256sum, ps, sysinfo ve daha fazlası.",
   "chips.native.title": "Yerel kabuk",
   "chips.search.text": "Çıktıda metin bulun, seçin ve geri yapıştırın.",

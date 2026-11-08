@@ -1,6 +1,7 @@
 // PS5Term owned native SSH selection. GPL-3.0-or-later.
 #if defined(PS5TERM_OWNED_SSH)
 #include "ssh_service.hpp"
+#include "i18n.hpp"
 #include "../backend/owned_ssh/service.hpp"
 namespace term
 {
@@ -48,6 +49,17 @@ unsigned SshService::port() const noexcept
 {
     return listening() ? service_->port() : port_;
 }
+// The owned service's status texts (backend/owned_ssh/service.cpp), listed here so
+// tools/generate-i18n.py collects them; the app translates status() where it draws it.
+[[maybe_unused]] constexpr const char *owned_status_texts[] = {
+    N_("Invalid SSH address or port"),
+    N_("Invalid SSH bind address"),
+    N_("SSH crypto initialization failed"),
+    N_("SSH socket creation failed"),
+    N_("Cannot bind SSH port (busy or unavailable)"),
+    N_("Cannot read SSH listener address"),
+    N_("PS5Term SSH server is listening"),
+};
 std::string_view SshService::status() const noexcept
 {
     return service_->status();

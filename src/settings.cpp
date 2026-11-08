@@ -48,6 +48,56 @@ bool Settings::set_text_style(unsigned style) noexcept
         ::unlink(temporary);
     return ok;
 }
+// The language choice: a number (0 = Auto) in "language", written the same atomic way.
+unsigned Settings::language() const noexcept
+{
+    char path[1024], bytes[4]{};
+    if (std::snprintf(path, sizeof(path), "%s/language", directory_) >=
+        static_cast<int>(sizeof(path)))
+        return 0;
+    int fd = ::open(path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC);
+    if (fd < 0)
+        return 0;
+    const auto count = ::read(fd, bytes, sizeof(bytes));
+    ::close(fd);
+    unsigned value = 0;
+    for (long i = 0; i < count; ++i)
+    {
+        if (bytes[i] == '\n' && i > 0)
+            return value;
+        if (bytes[i] < '0' || bytes[i] > '9')
+            return 0;
+        value = value * 10 + static_cast<unsigned>(bytes[i] - '0');
+    }
+    return 0;
+}
+bool Settings::set_language(unsigned language) noexcept
+{
+    if (language > 99)
+        return false;
+    if (::mkdir(directory_, 0700) < 0 && errno != EEXIST)
+        return false;
+    char path[1024], temporary[1024];
+    if (std::snprintf(path, sizeof(path), "%s/language", directory_) >=
+            static_cast<int>(sizeof(path)) ||
+        std::snprintf(temporary, sizeof(temporary), "%s/language.new", directory_) >=
+            static_cast<int>(sizeof(temporary)))
+        return false;
+    int fd =
+        ::open(temporary, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC, 0600);
+    if (fd < 0)
+        return false;
+    char bytes[4];
+    const int size = std::snprintf(bytes, sizeof(bytes), "%u\n", language);
+    bool ok = ::write(fd, bytes, static_cast<std::size_t>(size)) == size && ::fsync(fd) == 0;
+    if (::close(fd))
+        ok = false;
+    if (ok)
+        ok = ::rename(temporary, path) == 0;
+    if (!ok)
+        ::unlink(temporary);
+    return ok;
+}
 bool Settings::ssh_enabled() const noexcept
 {
     int file = ::open(flag_, O_RDONLY);

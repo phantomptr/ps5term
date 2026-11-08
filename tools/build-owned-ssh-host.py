@@ -85,7 +85,7 @@ def build():
         subprocess.run([os.environ.get('HOST_CC', 'clang'), '-std=c11', '-O1',
                         f'-I{ROOT / "third_party/libvterm/include"}', '-c', str(source), '-o', str(vterm_object)], check=True)
         vterm_objects.append(str(vterm_object))
-    ui_sources = ['tests/ssh/test_password_settings.cpp', 'src/app.cpp', 'src/terminal.cpp',
+    ui_sources = ['tests/ssh/test_password_settings.cpp', 'src/app.cpp', 'src/i18n.cpp', 'src/platform/system_language.cpp', 'src/terminal.cpp',
                   'src/telnet.cpp', 'src/connection.cpp', 'src/ssh_service_owned.cpp',
                   'src/settings.cpp', 'src/pointer.cpp', 'src/diagnostics.cpp',
                   'src/terminal_model.cpp', 'src/terminal_transport.cpp', 'src/scrollback.cpp',

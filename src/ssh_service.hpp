@@ -1,5 +1,6 @@
 // PS5Term - bundled SSH service lifecycle. SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
+#include "i18n.hpp"
 #include <array>
 #include <cstdint>
 #include <string_view>
@@ -107,7 +108,7 @@ class SshService
     bool attempted_ = false, uploaded_ = false, stop_after_upload_ = false;
     std::array<char, 8192> buffer_{};
     std::size_t size_ = 0, sent_ = 0;
-    std::string_view status_ = "Starting bundled SSH service";
+    std::string_view status_ = N_("Starting bundled SSH service");
     bool connect(unsigned port) noexcept;
     void close_socket() noexcept;
     void fail(std::string_view message) noexcept;

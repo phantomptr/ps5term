@@ -1,5 +1,6 @@
 // PS5Term - GPL-3.0-or-later.
 #include "linux_subsystem.hpp"
+#include "../i18n.hpp"
 #if defined(PS5TERM_LINUX_SUBSYSTEM)
 #include "linux_session.h"
 #if defined(PS5TERM_LINUX_NETWORK)
@@ -171,7 +172,8 @@ bool LinuxSubsystem::load_images() noexcept
                          ? read_file(path, size, limit, error)
                          : nullptr;
         if (!data)
-            std::snprintf(status_.data(), status_.size(), "Cannot read %s (errno %d)", name, error);
+            i18n::format(status_.data(), status_.size(), trc("Cannot read %s (errno %d)"), name,
+                         error);
         return data;
     };
     bios_ = load("bbl64.bin", bios_size_, 1024 * 1024);
@@ -195,7 +197,7 @@ bool LinuxSubsystem::load_images() noexcept
         disk_size_ % 512 || disk_[1080] != 0x53 || disk_[1081] != 0xef)
     {
         if (!status_[0])
-            std::snprintf(status_.data(), status_.size(), "Unsupported Linux image format");
+            i18n::format(status_.data(), status_.size(), trc("Unsupported Linux image format"));
         free_images();
         return false;
     }
@@ -225,14 +227,14 @@ bool LinuxSubsystem::open_data_disk() noexcept
     if (!std::strcmp(data_directory_, "/data/ps5term/linux") &&
         ::mkdir("/data/ps5term", 0700) < 0 && errno != EEXIST)
     {
-        std::snprintf(status_.data(), status_.size(),
-                      "Cannot create PS5Term data directory (errno %d)", errno);
+        i18n::format(status_.data(), status_.size(),
+                     trc("Cannot create PS5Term data directory (errno %d)"), errno);
         return false;
     }
     if (::mkdir(data_directory_, 0700) < 0 && errno != EEXIST)
     {
-        std::snprintf(status_.data(), status_.size(),
-                      "Cannot create Linux data directory (errno %d)", errno);
+        i18n::format(status_.data(), status_.size(),
+                     trc("Cannot create Linux data directory (errno %d)"), errno);
         return false;
     }
     int parent = ::open(data_directory_, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
@@ -248,8 +250,8 @@ bool LinuxSubsystem::open_data_disk() noexcept
             ::close(parent);
         if (seed >= 0)
             ::close(seed);
-        std::snprintf(status_.data(), status_.size(),
-                      "Cannot open Linux data directory/seed (errno %d)", error);
+        i18n::format(status_.data(), status_.size(),
+                     trc("Cannot open Linux data directory/seed (errno %d)"), error);
         return false;
     }
     // A separately pinned 16 MiB ext2 seed. Existing disk is never reseeded.
@@ -258,10 +260,10 @@ bool LinuxSubsystem::open_data_disk() noexcept
     ::close(seed);
     ::close(parent);
     if (!ok)
-        std::snprintf(status_.data(), status_.size(),
-                      "Data disk: %s (errno %d); existing data preserved",
-                      data_disk_ ? data_disk_->operation() : "allocate",
-                      data_disk_ ? data_disk_->error() : ENOMEM);
+        i18n::format(status_.data(), status_.size(),
+                     trc("Data disk: %s (errno %d); existing data preserved"),
+                     data_disk_ ? data_disk_->operation() : "allocate",
+                     data_disk_ ? data_disk_->error() : ENOMEM);
     return ok;
 }
 #endif
@@ -356,7 +358,7 @@ bool LinuxSubsystem::start(unsigned cols, unsigned rows) noexcept
     session_ = ps5_linux_session_create(160 * 1024 * 1024);
     if (!session_)
     {
-        std::snprintf(status_.data(), status_.size(), "Cannot allocate Linux session");
+        i18n::format(status_.data(), status_.size(), trc("Cannot allocate Linux session"));
 #if defined(PS5TERM_LINUX_PERSISTENCE)
         delete data_disk_;
         data_disk_ = nullptr;
@@ -405,9 +407,9 @@ bool LinuxSubsystem::start(unsigned cols, unsigned rows) noexcept
     if (!ps5_linux_session_start(session_, &images))
     {
         const auto error = ps5_linux_session_status(session_);
-        std::snprintf(status_.data(), status_.size(),
-                      "Linux worker start failed (error %d, thread %d)",
-                      static_cast<int>(error.error), error.thread_error);
+        i18n::format(status_.data(), status_.size(),
+                     trc("Linux worker start failed (error %d, thread %d)"),
+                     static_cast<int>(error.error), error.thread_error);
         ps5_linux_session_destroy(session_);
         session_ = nullptr;
 #if defined(PS5TERM_LINUX_PERSISTENCE)
@@ -430,7 +432,7 @@ bool LinuxSubsystem::start(unsigned cols, unsigned rows) noexcept
                        return ps5_linux_session_agent_read(static_cast<Ps5LinuxSession *>(session),
                                                            bytes, size);
                    }});
-    std::snprintf(status_.data(), status_.size(), "Linux worker running");
+    i18n::format(status_.data(), status_.size(), trc("Linux worker running"));
     ps5_guest_trace("worker-started", 0);
     running_ = true;
     return true;
@@ -441,7 +443,8 @@ bool LinuxSubsystem::stop() noexcept
     agent_.detach();
     if (session_ && !ps5_linux_session_stop(session_))
     {
-        std::snprintf(status_.data(), status_.size(), "Cannot join Linux worker; session retained");
+        i18n::format(status_.data(), status_.size(),
+                     trc("Cannot join Linux worker; session retained"));
         return false; // Never free borrowed images while a worker may still use them.
     }
     if (session_)
@@ -459,7 +462,7 @@ bool LinuxSubsystem::stop() noexcept
     running_ = false;
     free_images();
     if (had_session)
-        std::snprintf(status_.data(), status_.size(), "Linux stopped");
+        i18n::format(status_.data(), status_.size(), trc("Linux stopped"));
     return true;
 }
 
@@ -469,20 +472,20 @@ std::size_t LinuxSubsystem::read(char *buf, std::size_t size) noexcept
         return 0;
 #if defined(PS5TERM_LINUX_PERSISTENCE)
     if (data_disk_ && data_disk_->error())
-        std::snprintf(status_.data(), status_.size(), "Linux disk I/O failed (errno %d)",
-                      data_disk_->error());
+        i18n::format(status_.data(), status_.size(), trc("Linux disk I/O failed (errno %d)"),
+                     data_disk_->error());
 #endif
 #if defined(PS5TERM_LINUX_NETWORK)
     auto network_status = ps5_linux_session_status(session_);
     if (network_status.state == PS5_SESSION_RUNNING)
     {
         if (network_status.network_state < 0)
-            std::snprintf(status_.data(), status_.size(),
-                          "Linux running; network failed (socket layer). Reconnect or restart "
-                          "Linux to retry.");
+            i18n::format(status_.data(), status_.size(),
+                         trc("Linux running; network failed (socket layer). Reconnect or restart "
+                             "Linux to retry."));
         else if (!network_)
-            std::snprintf(status_.data(), status_.size(),
-                          "Linux running offline; network setup unavailable.");
+            i18n::format(status_.data(), status_.size(),
+                         trc("Linux running offline; network setup unavailable."));
         else if (network_status.network_state > 0)
             std::snprintf(
                 status_.data(), status_.size(),
@@ -492,9 +495,9 @@ std::size_t LinuxSubsystem::read(char *buf, std::size_t size) noexcept
 #endif
 #if defined(PS5TERM_LINUX_SHARED_FOLDER)
     if (shared_error_)
-        std::snprintf(status_.data(), status_.size(),
-                      "Linux running; PS5 files could not be mounted at /mnt/ps5 (errno %d).",
-                      shared_error_);
+        i18n::format(status_.data(), status_.size(),
+                     trc("Linux running; PS5 files could not be mounted at /mnt/ps5 (errno %d)."),
+                     shared_error_);
 #endif
     auto n = ps5_linux_session_read(session_, buf, size);
     if (!n)

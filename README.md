@@ -43,6 +43,9 @@
   sftp -P 2222 ps5term@<PS5-IP>             # The PS5's own files.
   ```
 
+- **In your language.** English, German, Spanish, French, Italian, Polish, Portuguese
+  (Brazil), Russian, Turkish, Hungarian and Indonesian. It follows the PS5's language;
+  choose another in Settings → Language. Program output stays as the program writes it.
 - **Any input, alone.** A keyboard alone, a mouse alone, keyboard and mouse, or a
   controller alone: every action works with each, and on-screen hints name the keys
   of whatever you used last. See the [feature access matrix](docs/FEATURES.md).
@@ -54,7 +57,8 @@
 - Linux runs interpreted, so it suits shell work rather than heavy computation. Its
   outbound IPv4 network goes through the app, and nothing can connect in to it.
   Changes outside `/mnt/data` reset when Linux stops.
-- CJK characters show a replacement mark.
+- CJK characters show a replacement mark, so the app has no Chinese, Japanese, Korean,
+  Arabic, Thai, Hindi, Bengali or Vietnamese translation yet (the website has all of them).
 - Firmware 13.60 on a phat console (CFI-1115A) is the only hardware tested so far.
   Reports from other firmware are welcome.
 

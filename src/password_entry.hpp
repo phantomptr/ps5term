@@ -1,6 +1,7 @@
 // PS5Term password input, deliberately separate from terminal/history/clipboard.
 // GPL-3.0-or-later.
 #pragma once
+#include "i18n.hpp"
 #include <array>
 #include <string_view>
 namespace term
@@ -26,7 +27,7 @@ class PasswordEntry
         wipe(input_);
         size_ = cursor_ = first_size_ = 0;
         active_ = confirming_ = false;
-        message_ = "8-64 printable characters. Spaces are preserved.";
+        message_ = N_("8-64 printable characters. Spaces are preserved.");
     }
     bool active() const noexcept
     {
@@ -54,7 +55,7 @@ class PasswordEntry
     }
     void failed() noexcept
     {
-        message_ = "Cannot save password. Check SSH identity storage and retry.";
+        message_ = N_("Cannot save password. Check SSH identity storage and retry.");
     }
     void insert(char c) noexcept
     {
@@ -108,7 +109,7 @@ class PasswordEntry
         {
             if (size_ < 8)
             {
-                message_ = "Use at least 8 characters.";
+                message_ = N_("Use at least 8 characters.");
                 return false;
             }
             first_ = input_;
@@ -116,7 +117,7 @@ class PasswordEntry
             confirming_ = true;
             wipe(input_);
             size_ = cursor_ = 0;
-            message_ = "Enter the same password again.";
+            message_ = N_("Enter the same password again.");
             return false;
         }
         unsigned difference = static_cast<unsigned>(size_ ^ first_size_);
@@ -126,7 +127,7 @@ class PasswordEntry
         {
             wipe(input_);
             size_ = cursor_ = 0;
-            message_ = "Passwords differ. Re-enter the confirmation.";
+            message_ = N_("Passwords differ. Re-enter the confirmation.");
             return false;
         }
         return true;

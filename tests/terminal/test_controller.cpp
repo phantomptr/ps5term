@@ -1,5 +1,6 @@
 // PS5Term - controller workflow regression checks. GPL-3.0-or-later.
 #include "app.hpp"
+#include "i18n.hpp"
 #include <cassert>
 #include <cstdio>
 #include <string>
@@ -300,6 +301,13 @@ struct AppTest
         assert(app.settings_open_ && app.armed_button_ == ui::SettingsButton::expand_storage);
         app.controller(0x4000, 0x4000); // Unsupported host profile refuses the operation safely.
         assert(app.settings_open_);
+        app.controller(0x0040, 0x0040); // Language, beside Text size on the same row.
+        assert(app.settings_focus_ == 13 && app.focused(ui::language_button));
+        assert(i18n::selected() == i18n::automatic);
+        app.controller(0x4000, 0x4000); // Cross cycles Auto -> English -> the next language.
+        assert(i18n::selected() == i18n::english && i18n::current() == i18n::english);
+        app.controller(0, 0);
+        i18n::select(i18n::automatic); // Leave the rest of the tests in English.
         app.controller(0x0040, 0x0040);
         assert(app.settings_focus_ == 9);
         assert(app.focused(ui::text_size_button));

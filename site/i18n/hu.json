@@ -12,6 +12,8 @@
   "chips.colour.title": "Szín és Unicode",
   "chips.input.text": "Billentyűzet, egér vagy kontroller: minden művelet mindegyikkel működik.",
   "chips.input.title": "Bármelyik bemenet, önmagában",
+  "chips.lang.text": "Az app 11 nyelven, az angoltól az oroszig követi a PS5 nyelvét; ez az oldal 21 nyelven érhető el.",
+  "chips.lang.title": "A te nyelveden",
   "chips.native.text": "ls, cat, cp, grep, sha256sum, ps, sysinfo és még sok más, a PS5 saját fájljain.",
   "chips.native.title": "Natív shell",
   "chips.search.text": "Keress szöveget a kimenetben, jelöld ki, és illeszd be újra.",

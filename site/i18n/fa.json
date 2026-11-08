@@ -12,6 +12,8 @@
   "chips.colour.title": "رنگ و Unicode",
   "chips.input.text": "صفحه‌کلید، ماوس یا دسته: هر کاری با هر کدام انجام می‌شود.",
   "chips.input.title": "هر ورودی، به‌تنهایی",
+  "chips.lang.text": "برنامه در ۱۱ زبان، از انگلیسی تا روسی، از زبان PS5 شما پیروی می‌کند؛ این سایت به ۲۱ زبان است.",
+  "chips.lang.title": "به زبان شما",
   "chips.native.text": "ls، cat، cp، grep، sha256sum، ps، sysinfo و بیشتر، روی فایل‌های خود PS5.",
   "chips.native.title": "پوستهٔ بومی",
   "chips.search.text": "متن را در خروجی پیدا کنید، انتخابش کنید و دوباره بچسبانید.",

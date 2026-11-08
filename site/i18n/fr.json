@@ -12,6 +12,8 @@
   "chips.colour.title": "Couleur et Unicode",
   "chips.input.text": "Clavier, souris ou manette : chaque action marche avec chacun.",
   "chips.input.title": "N'importe quelle entrée, seule",
+  "chips.lang.text": "L'app suit la langue de ta PS5 dans 11 langues, de l'anglais au russe ; ce site en compte 21.",
+  "chips.lang.title": "Dans ta langue",
   "chips.native.text": "ls, cat, cp, grep, sha256sum, ps, sysinfo et plus, sur les fichiers de la PS5.",
   "chips.native.title": "Shell natif",
   "chips.search.text": "Trouve du texte dans la sortie, sélectionne-le et recolle-le.",

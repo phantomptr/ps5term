@@ -2,6 +2,7 @@
 // PS5Term - nonblocking SSH startup through the console's local loader.
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ssh_service.hpp"
+#include "i18n.hpp"
 #include "network.hpp"
 #include <cerrno>
 #include <fcntl.h>
@@ -97,10 +98,10 @@ void SshService::next_probe(std::uint64_t now) noexcept
     if (!attempted_)
     {
         attempted_ = true;
-        status_ = "Starting SSH server via local ELF loader";
+        status_ = N_("Starting SSH server via local ELF loader");
         if (!connect(loader_port_))
         {
-            fail("Start elfldr on port 9021, then press Square to retry");
+            fail(N_("Start elfldr on port 9021, then press Square to retry"));
             return;
         }
         state_ = State::loader;
@@ -109,7 +110,7 @@ void SshService::next_probe(std::uint64_t now) noexcept
     }
     if (startup_deadline_ == 0 || now >= startup_deadline_)
     {
-        fail("Bundled SSH server did not become ready; check console notification");
+        fail(N_("Bundled SSH server did not become ready; check console notification"));
         return;
     }
     which_ = 0;
@@ -155,7 +156,7 @@ void SshService::tick(std::uint64_t now) noexcept
             if (now >= deadline_)
             {
                 if (state_ == State::loader)
-                    fail("ELF loader connection timed out");
+                    fail(N_("ELF loader connection timed out"));
                 else
                     next_probe(now);
             }
@@ -166,7 +167,7 @@ void SshService::tick(std::uint64_t now) noexcept
         if (::getsockopt(socket_, SOL_SOCKET, SO_ERROR, &error, &length) < 0 || error)
         {
             if (state_ == State::loader)
-                fail("ELF loader unavailable on port 9021; press Square to retry");
+                fail(N_("ELF loader unavailable on port 9021; press Square to retry"));
             else
                 next_probe(now);
             return;
@@ -176,7 +177,7 @@ void SshService::tick(std::uint64_t now) noexcept
             file_ = ::open(payload_, O_RDONLY);
             if (file_ < 0)
             {
-                fail("Bundled SSH server asset missing");
+                fail(N_("Bundled SSH server asset missing"));
                 return;
             }
             state_ = State::uploading;
@@ -201,7 +202,7 @@ void SshService::tick(std::uint64_t now) noexcept
                 {
                     close_socket();
                     state_ = State::ready;
-                    status_ = "Bundled SSH server is listening";
+                    status_ = N_("Bundled SSH server is listening");
                     next_ = now + 10000000;
                 }
                 else
@@ -227,7 +228,7 @@ void SshService::tick(std::uint64_t now) noexcept
         return;
     if (now >= deadline_)
     {
-        fail("SSH server upload timed out");
+        fail(N_("SSH server upload timed out"));
         return;
     }
     if (sent_ == size_)
@@ -235,7 +236,7 @@ void SshService::tick(std::uint64_t now) noexcept
         auto count = ::read(file_, buffer_.data(), buffer_.size());
         if (count < 0)
         {
-            fail("Cannot read bundled SSH server");
+            fail(N_("Cannot read bundled SSH server"));
             return;
         }
         if (count == 0)
@@ -248,14 +249,14 @@ void SshService::tick(std::uint64_t now) noexcept
             if (stop_after_upload_)
             {
                 state_ = State::failed;
-                status_ = "SSH disabled";
+                status_ = N_("SSH disabled");
                 return;
             }
             which_ = 0;
             state_ = State::waiting;
             next_ = now + 500000;
             startup_deadline_ = now + 60000000;
-            status_ = "Waiting for SSH host keys and listener";
+            status_ = N_("Waiting for SSH host keys and listener");
             return;
         }
         size_ = static_cast<std::size_t>(count);
@@ -271,7 +272,7 @@ void SshService::tick(std::uint64_t now) noexcept
     if (count > 0)
         sent_ += static_cast<std::size_t>(count);
     else if (count == 0 || (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR))
-        fail("SSH server upload failed");
+        fail(N_("SSH server upload failed"));
 }
 } // namespace term
 

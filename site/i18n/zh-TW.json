@@ -12,6 +12,8 @@
   "chips.colour.title": "色彩和 Unicode",
   "chips.input.text": "鍵盤、滑鼠或控制器：每個操作用任何一種都能完成。",
   "chips.input.title": "任一輸入，單獨可用",
+  "chips.lang.text": "應用程式會跟隨你的 PS5 語言，支援從英文到俄文的 11 種語言；本網站有 21 種語言。",
+  "chips.lang.title": "你的語言",
   "chips.native.text": "ls、cat、cp、grep、sha256sum、ps、sysinfo 等，直接操作 PS5 自己的檔案。",
   "chips.native.title": "原生 shell",
   "chips.search.text": "在輸出中尋找文字，選取後再貼回去。",

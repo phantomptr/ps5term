@@ -12,6 +12,8 @@
   "chips.colour.title": "カラーと Unicode",
   "chips.input.text": "キーボード、マウス、コントローラー：どれか一つですべての操作ができます。",
   "chips.input.title": "どの入力でも単独で",
+  "chips.lang.text": "アプリは英語からロシア語まで 11 言語で PS5 の言語に合わせます。このサイトは 21 言語です。",
+  "chips.lang.title": "あなたの言語で",
   "chips.native.text": "ls、cat、cp、grep、sha256sum、ps、sysinfo などで、PS5 自身のファイルを扱えます。",
   "chips.native.title": "ネイティブシェル",
   "chips.search.text": "出力の中の文字を検索し、選択して貼り付け直せます。",

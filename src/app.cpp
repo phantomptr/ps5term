@@ -1,6 +1,7 @@
 // PS5Term - native terminal UI. GPL-3.0-or-later.
 #include "app.hpp"
 #include "build_info.hpp"
+#include "i18n.hpp"
 #include "diagnostics.hpp"
 #include <algorithm>
 #include <cstdio>
@@ -64,6 +65,7 @@ void on_raw_keyboard(std::uint32_t mods, const std::uint16_t *keys, int count, b
 void App::welcome() noexcept
 {
     text_style_ = settings_.text_style();
+    i18n::select(settings_.language(), i18n::system_language());
     sync_terminal_size();
     ssh_enabled_ = settings_.ssh_enabled();
     speed_ = ui::load_speed(speed_file);
@@ -71,7 +73,9 @@ void App::welcome() noexcept
     log_.line("start speed=%u%%", ui::speeds[speed_]);
     model().set_default_colors({212, 224, 237}, {0, 0, 0});
     model().feed("\033[20h"); // LNM: LF also does CR
-    model().feed("PS5Term\nType help for commands. F6 or click Settings; controller: Options.\n\n");
+    model().feed("PS5Term\n");
+    model().feed(tr("Type help for commands. F6 or click Settings; controller: Options."));
+    model().feed("\n\n");
 }
 void App::submit() noexcept
 {
@@ -150,7 +154,7 @@ void App::key(Key k, char ch) noexcept
             ui::SettingsButton::toggle_linux,   ui::SettingsButton::toggle_host_mount,
             ui::SettingsButton::expand_storage, ui::SettingsButton::text_size,
             ui::SettingsButton::open_alpine,    ui::SettingsButton::back,
-            ui::SettingsButton::about};
+            ui::SettingsButton::about,          ui::SettingsButton::language};
         if (k == Key::tab || k == Key::down || k == Key::backtab || k == Key::up)
         {
             move_settings_focus((k == Key::backtab || k == Key::up) ? -1 : 1);
@@ -225,7 +229,7 @@ void App::key(Key k, char ch) noexcept
         if (index < 4 && (!index || tabs_[index - 1]))
             switch_tab(index);
         else
-            tab_notice_ = "No such tab; New tab is Ctrl+Shift+T";
+            tab_notice_ = trc("No such tab; New tab is Ctrl+Shift+T");
         return;
     }
     if (k == Key::select_text)
@@ -632,6 +636,12 @@ void App::tick(std::uint64_t now) noexcept
     controller(input_.pressed(), input_.held());
     sync_terminal_size();
 }
+void App::cycle_language() noexcept
+{
+    const unsigned next = (i18n::selected() + 1) % i18n::count();
+    (void)settings_.set_language(next);
+    i18n::select(next, i18n::system_language());
+}
 void App::cycle_text_size() noexcept
 {
     text_style_ = text_style_ == 3 ? 1 : text_style_ + 1;
@@ -927,42 +937,44 @@ void App::draw_terminal(ps5::demo::Canvas &c) noexcept
     c.rectangle(64, 52, 72, 56, surface);
     c.text(72, 64, ">_", 3, cyan);
     c.text(160, 66, "PS5Term", 3, text);
-    c.text(160, 102, "Your console. Your tools.", 1, muted);
+    c.text(160, 102, tr("Your console. Your tools."), 1, muted);
     c.circle(1448, 80, 5, active_connection().connected() ? cyan : rgb(238, 205, 128));
     c.text(1468, 72,
-           active_connection().connected() ? "LOCAL / CONNECTED"
-           : active_connection().failed()  ? "LOCAL / OFFLINE"
-                                           : "LOCAL / STARTING",
+           active_connection().connected() ? tr("LOCAL / CONNECTED")
+           : active_connection().failed()  ? tr("LOCAL / OFFLINE")
+                                           : tr("LOCAL / STARTING"),
            2, muted);
     c.rectangle(64, 140, 1792, 2, edge);
     draw_tabs(c);
     c.text(1160, 78,
-           ssh_enabled_ ? (ssh_.listening() ? "SSH ON"
-                           : ssh_.failed()  ? "SSH ERROR"
-                                            : "SSH STARTING")
-                        : "SSH OFF",
+           ssh_enabled_ ? (ssh_.listening() ? tr("SSH ON")
+                           : ssh_.failed()  ? tr("SSH ERROR")
+                                            : tr("SSH STARTING"))
+                        : tr("SSH OFF"),
            1, ssh_enabled_ && ssh_.listening() ? cyan : muted);
     if (mouse_connected_)
     {
         c.circle(1160, 110, 4, cyan);
-        c.text(1172, 106, "MOUSE", 1, cyan);
+        c.text(1172, 106, tr("MOUSE"), 1, cyan);
     }
     // Labels name the keys of the input in use; in a Linux program F-keys are its own.
     const bool program_keys = program_owns_function_keys();
     label_button(c, ui::keyboard_button,
-                 pick(program_keys ? "Keyboard (Ctrl+Shift+K)" : "Keyboard (F4)", "Keyboard",
-                      "Keyboard (Triangle)"),
+                 pick(program_keys ? tr("Keyboard (Ctrl+Shift+K)") : tr("Keyboard (F4)"),
+                      tr("Keyboard"), tr("Keyboard (Triangle)")),
                  1, keyboard_ ? cyan : muted);
     label_button(c, ui::reconnect_button,
-                 pick(program_keys ? "Reconnect" : "Reconnect (F5)", "Reconnect", "Reconnect"), 1,
-                 muted);
+                 pick(program_keys ? tr("Reconnect") : tr("Reconnect (F5)"), tr("Reconnect"),
+                      tr("Reconnect")),
+                 1, muted);
     label_button(c, ui::interrupt_button,
-                 pick("Interrupt (Ctrl+C)", "Interrupt", "Interrupt (L2+Circle)"), 1, muted);
+                 pick(tr("Interrupt (Ctrl+C)"), tr("Interrupt"), tr("Interrupt (L2+Circle)")), 1,
+                 muted);
     if (hover(ui::settings_label))
         c.rectangle(1472, 158, 160, 24, hover_bg);
     c.text(1480, 166,
-           pick(program_keys ? "Settings (Ctrl+Shift+S)" : "Settings (F6)", "Settings",
-                "Settings (Options)"),
+           pick(program_keys ? tr("Settings (Ctrl+Shift+S)") : tr("Settings (F6)"), tr("Settings"),
+                tr("Settings (Options)")),
            1, hover(ui::settings_label) ? text : muted);
     c.rectangle(64, 202, 1792, keyboard_ ? 420 : 626, surface);
     if (split_)
@@ -981,8 +993,8 @@ void App::draw_terminal(ps5::demo::Canvas &c) noexcept
             c.rectangle(to_unsigned(g.left - 12), 202, to_unsigned(pane_width(index) + 28), 2,
                         color);
             char title[64];
-            std::snprintf(title, sizeof title, "Tab %u%s", index + 1,
-                          index == active_tab_ ? " / INPUT" : " / click to focus");
+            i18n::format(title, sizeof title, trc("Tab %u%s"), index + 1,
+                         index == active_tab_ ? tr(" / INPUT") : tr(" / click to focus"));
             c.text(g.left, 210, title, 1, color);
             draw_output(c, index);
         }
@@ -990,13 +1002,13 @@ void App::draw_terminal(ps5::demo::Canvas &c) noexcept
     else
         draw_output(c, active_tab_);
     if (scroll_)
-        c.text(1500, keyboard_ ? 592 : 794, "SCROLLBACK", 1, cyan);
+        c.text(1500, keyboard_ ? 592 : 794, tr("SCROLLBACK"), 1, cyan);
     if (keyboard_)
     {
-        c.text(84, 610, "KEYBOARD", 1, muted);
-        label_button(c, ui::osk_shift, "Shift", 1, shift_ ? text : muted);
-        label_button(c, ui::osk_delete, "Delete", 1, muted);
-        label_button(c, ui::osk_run, search_open_ ? "Next" : "Run", 1, muted);
+        c.text(84, 610, tr("KEYBOARD"), 1, muted);
+        label_button(c, ui::osk_shift, tr("Shift"), 1, shift_ ? text : muted);
+        label_button(c, ui::osk_delete, tr("Delete"), 1, muted);
+        label_button(c, ui::osk_run, search_open_ ? tr("Next") : tr("Run"), 1, muted);
         auto keys = shift_ ? upper : lower;
         static constexpr std::string_view terminal_keys[] = {
             "Esc",  "Tab",  "Ctrl", "Alt", "Left", "Down", "Up",  "Right",
@@ -1046,36 +1058,40 @@ void App::draw_terminal(ps5::demo::Canvas &c) noexcept
                         876, 2, text_metrics::height(text_style_), cyan);
     }
     if (output_selection_)
-        c.text(84, 951,
-               pick("Select: arrows/PgUp/PgDn move; Space starts here; Enter copies; Esc cancels",
-                    "Select: drag with the mouse, or arrows; Enter copies; Esc cancels",
-                    "Select: D-pad/L1/R1 move; Square starts here; Cross copies; Circle cancels"),
-               1, cyan);
+        c.text(
+            84, 951,
+            pick(tr("Select: arrows/PgUp/PgDn move; Space starts here; Enter copies; Esc cancels"),
+                 tr("Select: drag with the mouse, or arrows; Enter copies; Esc cancels"),
+                 tr("Select: D-pad/L1/R1 move; Square starts here; Cross copies; Circle cancels")),
+            1, cyan);
     else if (now_ < reconnect_armed_until_)
-        c.text(84, 951,
-               "Click Reconnect again to restart Linux. Unsaved files outside /mnt/data are lost.",
-               1, rgb(238, 205, 128));
+        c.text(
+            84, 951,
+            tr("Click Reconnect again to restart Linux. Unsaved files outside /mnt/data are lost."),
+            1, rgb(238, 205, 128));
     else
-        c.text(84, 951, active_connection().status(), 1,
+        c.text(84, 951, tr(active_connection().status()), 1,
                active_connection().connected() ? cyan : muted);
-    c.text(84, 987,
-           pick(program_keys ? "Enter Run   Ctrl+C Interrupt   Shift+F10 Actions   Ctrl+Shift+K "
-                               "Keyboard   Ctrl+Shift+S Settings"
-                             : "Enter Run   Ctrl+C Interrupt   Shift+F10 Actions   F4 Keyboard   "
-                               "F5 Reconnect   F6 Settings",
-                "Click a button; right-click for Copy / Paste / Select / Find / tabs",
-                "Triangle Keyboard   R2 Run   L2+Circle Interrupt   L3 Actions   Options Settings"),
-           2, muted);
+    c.text(
+        84, 987,
+        pick(
+            program_keys ? tr("Enter Run   Ctrl+C Interrupt   Shift+F10 Actions   Ctrl+Shift+K "
+                              "Keyboard   Ctrl+Shift+S Settings")
+                         : tr("Enter Run   Ctrl+C Interrupt   Shift+F10 Actions   F4 Keyboard   "
+                              "F5 Reconnect   F6 Settings"),
+            tr("Click a button; right-click for Copy / Paste / Select / Find / tabs"),
+            tr("Triangle Keyboard   R2 Run   L2+Circle Interrupt   L3 Actions   Options Settings")),
+        2, muted);
     c.text(84, 1023,
            pick(program_keys
-                    ? "F1-F12 go to the program. Ctrl+Shift+Space select, Ctrl+Shift+V paste, "
-                      "Ctrl+Shift+F find, Ctrl+Shift+T/W/1-4 tabs, Shift+PgUp/PgDn scroll back."
-                    : "Ctrl+Shift+Space select text, Ctrl+Shift+V paste, Ctrl+Shift+F find, "
-                      "Ctrl+Shift+T/W/1-4 tabs, PgUp/PgDn scroll back.",
-                "Drag to select, middle-click to paste, wheel to scroll (Shift for pages). In "
-                "programs that use the mouse, hold Shift or use Select text from the menu.",
-                "Keyboard: D-pad moves, Cross types, R3 Shift, Square Backspace; last row has "
-                "F1-F10, Del, Ins. Keyboard closed: D-pad scrolls."),
+                    ? tr("F1-F12 go to the program. Ctrl+Shift+Space select, Ctrl+Shift+V paste, "
+                         "Ctrl+Shift+F find, Ctrl+Shift+T/W/1-4 tabs, Shift+PgUp/PgDn scroll back.")
+                    : tr("Ctrl+Shift+Space select text, Ctrl+Shift+V paste, Ctrl+Shift+F find, "
+                         "Ctrl+Shift+T/W/1-4 tabs, PgUp/PgDn scroll back."),
+                tr("Drag to select, middle-click to paste, wheel to scroll (Shift for pages). In "
+                   "programs that use the mouse, hold Shift or use Select text from the menu."),
+                tr("Keyboard: D-pad moves, Cross types, R3 Shift, Square Backspace; last row has "
+                   "F1-F10, Del, Ins. Keyboard closed: D-pad scrolls.")),
            1, muted);
 }
 void App::draw_output(ps5::demo::Canvas &c, unsigned index) noexcept
@@ -1221,37 +1237,37 @@ void App::draw_settings(ps5::demo::Canvas &c) noexcept
 {
     c.clear(bg);
     c.text(84, 70, ">_", 3, cyan);
-    c.text(174, 70, "PS5Term / Settings", 3, text);
-    c.text(84, 140, "Optional services for your research workflow.", 2, muted);
+    c.text(174, 70, tr("PS5Term / Settings"), 3, text);
+    c.text(84, 140, tr("Optional services for your research workflow."), 2, muted);
     c.rectangle(64, 208, 1792, 420, surface);
-    c.text(96, 246, "SSH SERVER", 2, text);
-    label_button(c, ui::ssh_retry, pick("Retry SSH (F5)", "Retry SSH", "Retry SSH"), 1,
+    c.text(96, 246, tr("SSH SERVER"), 2, text);
+    label_button(c, ui::ssh_retry, pick(tr("Retry SSH (F5)"), tr("Retry SSH"), tr("Retry SSH")), 1,
                  ssh_enabled_ ? text : muted);
     c.rectangle(1580, 234, 224, 52,
                 ssh_enabled_                                         ? cyan
                 : (hover(ui::ssh_switch) || focused(ui::ssh_switch)) ? hover_bg
                                                                      : edge);
-    c.text(1630, 252, ssh_enabled_ ? "ON" : "OFF", 2, ssh_enabled_ ? bg : text);
+    c.text(1630, 252, ssh_enabled_ ? tr("ON") : tr("OFF"), 2, ssh_enabled_ ? bg : text);
 #if defined(PS5TERM_OWNED_SSH)
 #if defined(PS5TERM_OWNED_SFTP)
-    c.text(
-        96, 296,
-        "App-owned SSH and SFTP. ps5term@ is the built-in shell; linux@ opens a real Linux shell.",
-        2, muted);
+    c.text(96, 296,
+           tr("App-owned SSH and SFTP. ps5term@ is the built-in shell; linux@ opens a real Linux "
+              "shell."),
+           2, muted);
 #else
-    c.text(96, 296, "App-owned SSH. Basic commands; full shell and SFTP are in development.", 2,
+    c.text(96, 296, tr("App-owned SSH. Basic commands; full shell and SFTP are in development."), 2,
            muted);
 #endif
     constexpr const char *ssh_user = "ps5term";
 #else
-    c.text(96, 296, "Connect from your computer. Run commands and transfer files with SFTP.", 2,
+    c.text(96, 296, tr("Connect from your computer. Run commands and transfer files with SFTP."), 2,
            muted);
     constexpr const char *ssh_user = "root";
 #endif
     c.text(96, 340,
            settings_error_
-               ? "Cannot save SSH setting. Check access to /data/ps5term."
-               : (ssh_enabled_ ? ssh_.status() : "Disabled. Activate Enable SSH to start."),
+               ? tr("Cannot save SSH setting. Check access to /data/ps5term.")
+               : (ssh_enabled_ ? tr(ssh_.status()) : tr("Disabled. Activate Enable SSH to start.")),
            2, settings_error_ ? palette[1] : (ssh_enabled_ && ssh_.listening() ? cyan : muted));
     if (ssh_enabled_ && ssh_.listening())
     {
@@ -1271,8 +1287,8 @@ void App::draw_settings(ps5::demo::Canvas &c) noexcept
 #if defined(PS5TERM_OWNED_SSH)
         if (Connection::linux_available())
         {
-            std::snprintf(command.data(), command.size(), "Linux shell: ssh -p %u linux@%s",
-                          ssh_.port(), host);
+            i18n::format(command.data(), command.size(), trc("Linux shell: ssh -p %u linux@%s"),
+                         ssh_.port(), host);
             c.text(96, 466, command.data(), 2, text);
         }
 #if defined(PS5TERM_OWNED_SFTP)
@@ -1280,7 +1296,7 @@ void App::draw_settings(ps5::demo::Canvas &c) noexcept
                       host);
         c.text(96, 430, command.data(), 2, text);
 #else
-        c.text(96, 430, "Plain SSH: command ssh -T -p 2222 ps5term@<PS5-IP>", 2, text);
+        c.text(96, 430, tr("Plain SSH: command ssh -T -p 2222 ps5term@<PS5-IP>"), 2, text);
 #endif
 #else
         if (ssh_.port() == 22)
@@ -1292,8 +1308,8 @@ void App::draw_settings(ps5::demo::Canvas &c) noexcept
     }
     else
         c.text(96, 380,
-               ssh_enabled_ ? "SSH is enabled. Check the service status above."
-                            : "SSH is off. Your preference is saved on this console.",
+               ssh_enabled_ ? tr("SSH is enabled. Check the service status above.")
+                            : tr("SSH is off. Your preference is saved on this console."),
                2, text);
     if (password_visible_)
     {
@@ -1305,8 +1321,8 @@ void App::draw_settings(ps5::demo::Canvas &c) noexcept
             password_loaded_ = true;
         }
         c.text(96, 502,
-               password_available_ ? "Password:"
-                                   : "Password unavailable. Enable SSH to create one.",
+               password_available_ ? tr("Password:")
+                                   : tr("Password unavailable. Enable SSH to create one."),
                2, muted);
         if (password_available_)
             c.text(270, 502, slice(password_cache_.data(), 0, 94), 2, cyan);
@@ -1321,103 +1337,122 @@ void App::draw_settings(ps5::demo::Canvas &c) noexcept
             password_loaded_ = false;
         }
         c.text(96, 502,
-               pick("Password: hidden. Use Show password or F2.",
-                    "Password: hidden. Click Show password.",
-                    "Password: hidden. Triangle shows it."),
+               pick(tr("Password: hidden. Use Show password or F2."),
+                    tr("Password: hidden. Click Show password."),
+                    tr("Password: hidden. Triangle shows it.")),
                2, muted);
     }
 #if defined(PS5TERM_OWNED_SSH)
-    c.text(96, 538, "Public keys: /data/ps5term/ssh/authorized_keys", 2, muted);
-    c.text(96, 574, "Over SSH: ssh-key-add <public-key> / ssh-key-remove <public-key>", 2, muted);
+    c.text(96, 538, tr("Public keys: /data/ps5term/ssh/authorized_keys"), 2, muted);
+    c.text(96, 574, tr("Over SSH: ssh-key-add <public-key> / ssh-key-remove <public-key>"), 2,
+           muted);
 
 #else
-    c.text(96, 538, "Public keys: /data/ps5sshd/authorized_keys", 2, muted);
-    c.text(96, 574, "Tools: /data/ps5sshd/bin", 2, muted);
+    c.text(96, 538, tr("Public keys: /data/ps5sshd/authorized_keys"), 2, muted);
+    c.text(96, 574, tr("Tools: /data/ps5sshd/bin"), 2, muted);
 
 #endif
     const bool linux = connection_.environment() == Connection::Environment::linux_guest;
     c.rectangle(64, 644, 1792, 204, surface);
-    c.text(96, 668, "LINUX SUBSYSTEM / EXPERIMENTAL", 2, text);
+    c.text(96, 668, tr("LINUX SUBSYSTEM / EXPERIMENTAL"), 2, text);
     label_button(c, ui::linux_switch,
-                 !Connection::linux_available() ? "Unavailable in this build"
-                 : linux                        ? "Stop Linux / return to PS5"
-                                                : "Start Linux",
+                 !Connection::linux_available() ? tr("Unavailable in this build")
+                 : linux                        ? tr("Stop Linux / return to PS5")
+                                                : tr("Start Linux"),
                  2, Connection::linux_available() ? cyan : muted);
     const bool shares = platform::LinuxSubsystem::shared_folder_available();
     if (shares && Connection::linux_available())
         label_button(c, ui::host_mount_switch,
-                     host_mount_whole_ ? "PS5 files in /mnt/ps5: / (all the app sees)"
-                                       : "PS5 files in /mnt/ps5: /data",
+                     host_mount_whole_ ? tr("PS5 files in /mnt/ps5: / (all the app sees)")
+                                       : tr("PS5 files in /mnt/ps5: /data"),
                      2, host_mount_whole_ ? palette[1] : cyan);
     if (host_mount_error_)
-        c.text(96, 772, "Cannot save the /mnt/ps5 choice. Check access to /data/ps5term.", 2,
+        c.text(96, 772, tr("Cannot save the /mnt/ps5 choice. Check access to /data/ps5term."), 2,
                palette[1]);
     else if (shares && host_mount_whole_)
         c.text(96, 772,
-               linux ? "/ takes effect at the next Linux start. Linux root can then change or "
-                       "delete whatever this app can reach."
-                     : "/ lets Linux root change or delete whatever this app can reach, except "
-                       "PS5Term's SSH keys and Linux disks.",
+               linux ? tr("/ takes effect at the next Linux start. Linux root can then change or "
+                          "delete whatever this app can reach.")
+                     : tr("/ lets Linux root change or delete whatever this app can reach, except "
+                          "PS5Term's SSH keys and Linux disks."),
                2, palette[1]);
     else
         c.text(
             96, 772,
             platform::LinuxSubsystem::network_available()
-                ? "Outbound IPv4 NAT: eth0 by DHCP, DNS 1.1.1.1 or /data/ps5term/linux/resolver. "
-                  "/mnt/data saved; /mnt/ps5 is the PS5's /data. Root temporary."
+                ? tr("Outbound IPv4 NAT: eth0 by DHCP, DNS 1.1.1.1 or "
+                     "/data/ps5term/linux/resolver. "
+                     "/mnt/data saved; /mnt/ps5 is the PS5's /data. Root temporary.")
             : shares
                 ? (platform::LinuxSubsystem::persistence_available()
-                       ? "/mnt/data saved; /mnt/ps5 is the PS5's /data. Root temporary; no "
-                         "network. SSH stays native."
-                       : "/mnt/ps5 is the PS5's /data; system temporary. No network. SSH stays "
-                         "native.")
+                       ? tr("/mnt/data saved; /mnt/ps5 is the PS5's /data. Root temporary; no "
+                            "network. SSH stays native.")
+                       : tr("/mnt/ps5 is the PS5's /data; system temporary. No network. SSH stays "
+                            "native."))
             : platform::LinuxSubsystem::persistence_available()
-                ? "/mnt/data is saved; system files are temporary. No network/share. SSH stays "
-                  "native."
-                : "Isolated RISC-V Linux. Temporary disk; no network or PS5 files. SSH stays "
-                  "native.",
+                ? tr("/mnt/data is saved; system files are temporary. No network/share. SSH stays "
+                     "native.")
+                : tr("Isolated RISC-V Linux. Temporary disk; no network or PS5 files. SSH stays "
+                     "native."),
             2, muted);
     char storage_label[128];
     if (connection_.storage_busy())
-        std::snprintf(storage_label, sizeof(storage_label),
-                      "Expanding storage: %u%% (keep app open)", connection_.storage_progress());
+        i18n::format(storage_label, sizeof(storage_label),
+                     trc("Expanding storage: %u%% (keep app open)"),
+                     connection_.storage_progress());
     else if (storage_requested_ && connection_.storage_error())
-        std::snprintf(storage_label, sizeof(storage_label),
-                      "Expansion failed (%d): backup kept if created", connection_.storage_error());
+        i18n::format(storage_label, sizeof(storage_label),
+                     trc("Expansion failed (%d): backup kept if created"),
+                     connection_.storage_error());
     else if (storage_requested_)
-        std::snprintf(storage_label, sizeof(storage_label),
-                      "512 MiB ready; start Linux to finish filesystem growth");
+        i18n::format(storage_label, sizeof(storage_label),
+                     trc("512 MiB ready; start Linux to finish filesystem growth"));
     else
-        std::snprintf(storage_label, sizeof(storage_label),
-                      "Expand data to 512 MiB (keeps backup)");
+        i18n::format(storage_label, sizeof(storage_label),
+                     trc("Expand data to 512 MiB (keeps backup)"));
     char link_failure[160] = "";
     if (const char *why = connection_.guest_agent().failure())
-        std::snprintf(link_failure, sizeof(link_failure),
-                      "SSH link to Linux failed (%s). Stop Linux and start it again for linux@.",
-                      why);
-    label_button(c, ui::alpine_button, "Open / install Alpine", 2, cyan);
+        i18n::format(
+            link_failure, sizeof(link_failure),
+            trc("SSH link to Linux failed (%s). Stop Linux and start it again for linux@."), why);
+    label_button(c, ui::alpine_button, tr("Open / install Alpine"), 2, cyan);
     label_button(c, ui::storage_expand, storage_label, 2, cyan);
     const bool armed = now_ < armed_until_;
     c.text(96, 808,
            armed && armed_button_ == ui::SettingsButton::toggle_linux
-               ? "Press Stop Linux again to stop: Linux shells and linux@ SSH sessions end."
+               ? tr("Press Stop Linux again to stop: Linux shells and linux@ SSH sessions end.")
            : armed && armed_button_ == ui::SettingsButton::expand_storage
-               ? "Press Expand again to grow the Linux data disk to 512 MiB (keeps a backup)."
+               ? tr("Press Expand again to grow the Linux data disk to 512 MiB (keeps a backup).")
            : storage_result_[0]       ? storage_result_
            : linux && link_failure[0] ? link_failure
-           : linux                    ? connection_.status()
-                                      : "Linux stopped. Disk backup: linux/data.ext2.backup",
+           : linux                    ? tr(connection_.status())
+                                      : tr("Linux stopped. Disk backup: linux/data.ext2.backup"),
            2, armed ? rgb(238, 205, 128) : muted);
     // Mouse pointer speed (D-pad / arrow keys, or click - and +).
     c.rectangle(64, 864, 1792, 56, surface);
     label_button(c, ui::text_size_button,
-                 text_style_ == 1   ? "Text: small"
-                 : text_style_ == 2 ? "Text: normal"
-                                    : "Text: large",
+                 text_style_ == 1   ? tr("Text: small")
+                 : text_style_ == 2 ? tr("Text: normal")
+                                    : tr("Text: large"),
                  1, cyan);
-    c.text(96, 882, "MOUSE SPEED", 2, text);
-    c.text(316, 886, pick("Left / Right to change", "Click - or +", "D-pad Left / Right to change"),
-           1, muted);
+    {
+        // Auto follows the console's language; the name is always in its own language.
+        char language[96], choice[64];
+        const auto current = i18n::name(i18n::current());
+        if (i18n::selected() == i18n::automatic)
+            std::snprintf(choice, sizeof choice, "%s (%.*s)", trc("Auto"),
+                          static_cast<int>(current.size()), current.data());
+        else
+            std::snprintf(choice, sizeof choice, "%.*s", static_cast<int>(current.size()),
+                          current.data());
+        i18n::format(language, sizeof language, trc("Language: %s"), choice);
+        label_button(c, ui::language_button, language, 1, cyan);
+    }
+    c.text(96, 882, tr("MOUSE SPEED"), 2, text);
+    c.text(
+        316, 886,
+        pick(tr("Left / Right to change"), tr("Click - or +"), tr("D-pad Left / Right to change")),
+        1, muted);
     char speed[16];
     std::snprintf(speed, sizeof(speed), "%u.%02ux", ui::speeds[speed_] / 100,
                   ui::speeds[speed_] % 100);
@@ -1429,60 +1464,36 @@ void App::draw_settings(ps5::demo::Canvas &c) noexcept
                2, text);
     }
     c.text(1544, 882, speed, 2, cyan);
-    label_button(c, ui::help_toggle, "Enable / disable SSH", 2, cyan);
+    label_button(c, ui::help_toggle, tr("Enable / disable SSH"), 2, cyan);
     label_button(c, ui::help_password,
-                 pick("Show / hide password (F2)", "Show / hide password",
-                      "Show / hide password (Triangle)"),
+                 pick(tr("Show / hide password (F2)"), tr("Show / hide password"),
+                      tr("Show / hide password (Triangle)")),
                  2, muted);
 #if defined(PS5TERM_OWNED_SSH)
-    label_button(c, ui::help_retry,
-                 pick("Change password (F3)", "Change password", "Change password (Square)"), 2,
-                 cyan);
+    label_button(
+        c, ui::help_retry,
+        pick(tr("Change password (F3)"), tr("Change password"), tr("Change password (Square)")), 2,
+        cyan);
     if (*password_result_)
         c.text(1040, 980, password_result_, 2, cyan);
 #else
-    label_button(c, ui::help_retry, "Retry SSH (F5)", 2, muted);
+    label_button(c, ui::help_retry, tr("Retry SSH (F5)"), 2, muted);
 #endif
-    label_button(c, ui::help_back,
-                 pick("Back to terminal (Esc)", "Back to terminal", "Back to terminal (Circle)"), 2,
+    label_button(
+        c, ui::help_back,
+        pick(tr("Back to terminal (Esc)"), tr("Back to terminal"), tr("Back to terminal (Circle)")),
+        2, muted);
+    label_button(c, ui::help_about,
+                 pick(tr("About PS5Term (F1)"), tr("About PS5Term"), tr("About PS5Term")), 2,
                  muted);
-    label_button(c, ui::help_about, pick("About PS5Term (F1)", "About PS5Term", "About PS5Term"), 2,
-                 muted);
-    c.text(
-        84, 1056,
-        pick("Tab / Shift+Tab or Up / Down: focus   Enter / Space: activate   Esc: back",
-             "Click a control; right-click goes back",
-             "D-pad Up / Down: focus   Cross: activate   Circle: back   Triangle: show password   "
-             "Square: change password"),
-        1, muted);
+    c.text(84, 1056,
+           pick(tr("Tab / Shift+Tab or Up / Down: focus   Enter / Space: activate   Esc: back"),
+                tr("Click a control; right-click goes back"),
+                tr("D-pad Up / Down: focus   Cross: activate   Circle: back   Triangle: show "
+                   "password   "
+                   "Square: change password")),
+           1, muted);
 }
-
-namespace
-{
-// Canvas::text is ASCII; names such as Törnblom need the glyph atlas for the rest.
-void credit_text(ps5::demo::Canvas &c, unsigned x, unsigned y, std::string_view value,
-                 unsigned style, Color color) noexcept
-{
-    const unsigned width = text_metrics::advance(style);
-    for (std::size_t i = 0; i < value.size();)
-    {
-        const auto byte = static_cast<unsigned char>(value[i]);
-        std::uint32_t code = byte;
-        std::size_t length = 1;
-        if ((byte & 0xe0U) == 0xc0U && i + 1 < value.size())
-        {
-            code = (byte & 0x1fU) << 6 | (static_cast<unsigned char>(value[i + 1]) & 0x3fU);
-            length = 2;
-        }
-        if (code < 128)
-            c.text(x, y, value.substr(i, 1), style, color);
-        else
-            c.glyph(x, y, code, color, style); // Draws the replacement mark if missing.
-        x += width;
-        i += length;
-    }
-}
-} // namespace
 
 // About: who made PS5Term, what it is built on, and the disclaimer. The console has no
 // browser, so links are written out to type on a computer or phone.
@@ -1490,78 +1501,85 @@ void App::draw_about(ps5::demo::Canvas &c) noexcept
 {
     c.clear(bg);
     c.text(84, 70, ">_", 3, cyan);
-    c.text(174, 70, "PS5Term / About", 3, text);
-    c.text(84, 140,
-           "A terminal for a jailbroken PS5: a native shell, a real Linux shell, and SSH and SFTP "
-           "from your computer.",
-           2, muted);
+    c.text(174, 70, tr("PS5Term / About"), 3, text);
+    c.text(
+        84, 140,
+        tr("A terminal for a jailbroken PS5: a native shell, a real Linux shell, and SSH and SFTP "
+           "from your computer."),
+        2, muted);
     char line[160];
-    std::snprintf(line, sizeof(line), "Version %s    License GPL-3.0-or-later", version);
+    i18n::format(line, sizeof(line), trc("Version %s    License GPL-3.0-or-later"), version);
     c.text(84, 180, line, 2, cyan);
-    std::snprintf(line, sizeof(line), "Build %.64s", build_id);
+    i18n::format(line, sizeof(line), trc("Build %.64s"), build_id);
     c.text(84, 214, line, 1, muted);
 
     c.rectangle(64, 252, 1792, 196, surface);
-    c.text(96, 280, "CREATED BY", 2, text);
+    c.text(96, 280, tr("CREATED BY"), 2, text);
     c.text(96, 318, "PhantomPtr", 3, cyan);
-    c.text(276, 324, "phantomptr.com      Also by PhantomPtr: PS5Upload", 2, muted);
-    c.text(96, 370,
-           "X  @phantomptr      Discord  discord.gg/fzK3xddtrM      Email  phantomptr@gmail.com", 2,
-           text);
+    c.text(276, 324, tr("phantomptr.com      Also by PhantomPtr: PS5Upload"), 2, muted);
+    c.text(
+        96, 370,
+        tr("X  @phantomptr      Discord  discord.gg/fzK3xddtrM      Email  phantomptr@gmail.com"),
+        2, text);
     c.text(96, 406,
-           "Website  ps5term.phantomptr.com      Source  github.com/phantomptr/ps5term      "
-           "Support  ko-fi.com/B0B81S0WUA",
+           tr("Website  ps5term.phantomptr.com      Source  github.com/phantomptr/ps5term      "
+              "Support  ko-fi.com/B0B81S0WUA"),
            2, text);
 
     c.rectangle(64, 468, 1792, 300, surface);
-    c.text(96, 496, "BUILT ON", 2, text);
+    c.text(96, 496, tr("BUILT ON"), 2, text);
     constexpr std::string_view credits[] = {
-        "App foundation, icon and music: ps5-native-app-boilerplate by BlackBearReloaded",
-        "PS5 Payload SDK and shsrv by John Törnblom (ps5-payload-dev)    ps5sshd by intestinate",
-        "SSH and SFTP: wolfSSH and wolfSSL    Terminal: libvterm by Paul Evans",
-        "Linux: TinyEMU by Fabrice Bellard, libslirp (QEMU project), Buildroot, Linux, OpenSBI, "
-        "musl, "
-        "BusyBox; optional Alpine Linux",
-        "Fonts: JetBrains Mono (JetBrains), font8x8 (Daniel Hepper)    Research notes: kstuff "
-        "contributors, kodi-ps5",
-        "Each project keeps its own license. Full credits and notices: NOTICE.md in the source.",
+        N_("App foundation, icon and music: ps5-native-app-boilerplate by BlackBearReloaded"),
+        N_("PS5 Payload SDK and shsrv by John Törnblom (ps5-payload-dev)    ps5sshd by "
+           "intestinate"),
+        N_("SSH and SFTP: wolfSSH and wolfSSL    Terminal: libvterm by Paul Evans"),
+        N_("Linux: TinyEMU by Fabrice Bellard, libslirp (QEMU project), Buildroot, Linux, OpenSBI, "
+           "musl, "
+           "BusyBox; optional Alpine Linux"),
+        N_("Fonts: JetBrains Mono (JetBrains), font8x8 (Daniel Hepper)    Research notes: kstuff "
+           "contributors, kodi-ps5"),
+        N_("Each project keeps its own license. Full credits and notices: NOTICE.md in the "
+           "source."),
     };
     unsigned y = 534;
     for (const auto credit : credits)
     {
-        credit_text(c, 96, y, credit, 2, muted);
+        c.text(96, y, tr(credit), 2, muted);
         y += 32;
     }
     c.text(96, 732,
-           "PS5Term is one tool among many. If something here helps you, please support the "
-           "people behind the PS5 scene's tools too.",
+           tr("PS5Term is one tool among many. If something here helps you, please support the "
+              "people behind the PS5 scene's tools too."),
            1, muted);
 
     c.rectangle(64, 788, 1792, 200, surface);
-    c.text(96, 816, "DISCLAIMER", 2, text);
+    c.text(96, 816, tr("DISCLAIMER"), 2, text);
     constexpr std::string_view disclaimer[] = {
-        "For research, education, interoperability and homebrew development. Not affiliated with "
-        "or endorsed by Sony Interactive Entertainment.",
-        "\"PlayStation\" and \"PS5\" are trademarks of Sony Interactive Entertainment Inc., used "
-        "here for identification only.",
-        "Provided as is, without warranty. A modified console can be damaged, lose data or be "
-        "banned. Use it at your own risk,",
-        "only with hardware and content you own. Full terms: DISCLAIMER.md in the source.",
+        N_("For research, education, interoperability and homebrew development. Not affiliated "
+           "with or endorsed by Sony Interactive Entertainment."),
+        N_("\"PlayStation\" and \"PS5\" are trademarks of Sony Interactive Entertainment Inc., "
+           "used here for identification only."),
+        N_("Provided as is, without warranty. A modified console can be damaged, lose data or be "
+           "banned."),
+        N_("Use it at your own risk, only with hardware and content you own. Full terms: "
+           "DISCLAIMER.md in the source."),
     };
     y = 852;
     for (const auto line_text : disclaimer)
     {
-        c.text(96, y, line_text, 2, muted);
+        c.text(96, y, tr(line_text), 2, muted);
         y += 32;
     }
 
-    label_button(c, ui::help_back,
-                 pick("Back to Settings (Esc)", "Back to Settings", "Back to Settings (Circle)"), 2,
-                 cyan);
-    c.text(1625, 1028, "Made with love for the PS5 scene.", 1, muted);
+    label_button(
+        c, ui::help_back,
+        pick(tr("Back to Settings (Esc)"), tr("Back to Settings"), tr("Back to Settings (Circle)")),
+        2, cyan);
+    c.text(1625, 1028, tr("Made with love for the PS5 scene."), 1, muted);
     c.text(84, 1056,
-           pick("Esc / Enter: back   F6: close Settings", "Click Back or right-click to go back",
-                "Circle / Cross: back   Options: close Settings"),
+           pick(tr("Esc / Enter: back   F6: close Settings"),
+                tr("Click Back or right-click to go back"),
+                tr("Circle / Cross: back   Options: close Settings")),
            1, muted);
 }
 
@@ -2043,6 +2061,8 @@ void App::settings_action(ui::SettingsButton button) noexcept
         settings_focus_ = 11;
     else if (button == ui::SettingsButton::about)
         settings_focus_ = 12;
+    else if (button == ui::SettingsButton::language)
+        settings_focus_ = 13;
     switch (button)
     {
     case ui::SettingsButton::restart_ssh:
@@ -2091,7 +2111,7 @@ void App::settings_action(ui::SettingsButton button) noexcept
         break;
     case ui::SettingsButton::expand_storage:
         if (connection_.environment() == Connection::Environment::linux_guest)
-            storage_result_ = "Stop Linux before expanding storage";
+            storage_result_ = trc("Stop Linux before expanding storage");
         else if (!connection_.storage_busy() && !confirmed(button))
             break;
         else if (connection_.expand_linux_storage(512))
@@ -2100,7 +2120,7 @@ void App::settings_action(ui::SettingsButton button) noexcept
             storage_result_ = "";
         }
         else
-            storage_result_ = "Cannot expand: stop Linux or wait for the current expansion";
+            storage_result_ = trc("Cannot expand: stop Linux or wait for the current expansion");
         break;
     case ui::SettingsButton::toggle_linux:
         // Stopping ends every Linux shell and SSH linux@ session: ask once more.
@@ -2122,6 +2142,9 @@ void App::settings_action(ui::SettingsButton button) noexcept
         break;
     case ui::SettingsButton::about:
         about_open_ = true;
+        break;
+    case ui::SettingsButton::language:
+        cycle_language();
         break;
     case ui::SettingsButton::speed_down:
         set_speed(speed_ ? speed_ - 1 : 0);
@@ -2541,7 +2564,7 @@ void App::type_key(std::size_t index) noexcept
                 model().function_key(static_cast<unsigned>(index - 59),
                                      osk_modifiers_ | (shift_ ? T::shift : 0U));
             else
-                tab_notice_ = "F-keys go to Linux programs; the built-in shell has none";
+                tab_notice_ = trc("F-keys go to Linux programs; the built-in shell has none");
             osk_modifiers_ = 0;
         }
         break;
@@ -2564,7 +2587,7 @@ void App::draw_menu(ps5::demo::Canvas &c) noexcept
         if (item == hovered && (enabled || menu_keyboard_))
             c.rectangle(to_unsigned(m.x + 4), y, to_unsigned(m.w - 8), ui::menu_item_height,
                         hover_bg);
-        c.text(to_unsigned(m.x + 20), y + 14, ui::menu_label(item), 2, enabled ? text : edge);
+        c.text(to_unsigned(m.x + 20), y + 14, tr(ui::menu_label(item)), 2, enabled ? text : edge);
     }
 }
 bool App::focused(const ui::Rect &r) const noexcept
@@ -2591,14 +2614,19 @@ bool App::focused(const ui::Rect &r) const noexcept
            (settings_focus_ == 9 && same(ui::text_size_button)) ||
            (settings_focus_ == 10 && same(ui::alpine_button)) ||
            (settings_focus_ == 11 && same(ui::help_back)) ||
-           (settings_focus_ == 12 && same(ui::help_about));
+           (settings_focus_ == 12 && same(ui::help_about)) ||
+           (settings_focus_ == 13 && same(ui::language_button));
 }
 void App::label_button(ps5::demo::Canvas &c, const ui::Rect &r, std::string_view label,
                        unsigned scale, ps5::demo::Color color) noexcept
 {
+    // A translation can be longer than the English the button was sized for: the highlight
+    // grows with the text so focus never cuts a label off.
+    const int needed =
+        static_cast<int>(text_metrics::length(label) * text_metrics::advance(scale)) + 16;
     if (hover(r) || focused(r))
-        c.rectangle(to_unsigned(r.x), to_unsigned(r.y), to_unsigned(r.w), to_unsigned(r.h),
-                    hover_bg);
+        c.rectangle(to_unsigned(r.x), to_unsigned(r.y), to_unsigned(std::max(r.w, needed)),
+                    to_unsigned(r.h), hover_bg);
     if (focused(r))
         c.rectangle(to_unsigned(r.x), to_unsigned(r.y), 3, to_unsigned(r.h), cyan);
     c.text(to_unsigned(r.x + 8), to_unsigned(r.y + 8), label, scale,
@@ -2650,7 +2678,7 @@ void App::accept_password() noexcept
     if (ssh_.set_password(password_entry_.value()))
     {
         password_entry_.cancel();
-        password_result_ = "Password saved. SSH clients disconnected.";
+        password_result_ = trc("Password saved. SSH clients disconnected.");
         return;
     }
 #endif
@@ -2746,11 +2774,13 @@ void App::password_controller(std::uint32_t p) noexcept
 void App::draw_password(ps5::demo::Canvas &c) noexcept
 {
     c.clear(bg);
-    c.text(84, 70, "PS5Term / Change SSH password", 3, text);
-    c.text(96, 210, password_entry_.confirming() ? "CONFIRM PASSWORD" : "NEW PASSWORD", 2, cyan);
-    c.text(96, 270, password_entry_.message(), 2, muted);
-    c.text(96, 330, "Saving disconnects SSH clients. The host key and public keys stay the same.",
-           2, muted);
+    c.text(84, 70, tr("PS5Term / Change SSH password"), 3, text);
+    c.text(96, 210, password_entry_.confirming() ? tr("CONFIRM PASSWORD") : tr("NEW PASSWORD"), 2,
+           cyan);
+    c.text(96, 270, tr(password_entry_.message()), 2, muted);
+    c.text(96, 330,
+           tr("Saving disconnects SSH clients. The host key and public keys stay the same."), 2,
+           muted);
     c.rectangle(84, 410, 1752, 70, surface);
     if (password_focus_ == 0 && focus_visible_)
         c.rectangle(84, 410, 3, 70, cyan);
@@ -2759,12 +2789,13 @@ void App::draw_password(ps5::demo::Canvas &c) noexcept
     c.text(108, 434, {mask.data(), password_entry_.size()}, 2, text);
     c.rectangle(108 + static_cast<unsigned>(password_entry_.cursor()) * text_metrics::cell_width,
                 430, 2, 30, cyan);
-    c.text(96, 540,
-           "Type to edit. Tab selects buttons; Enter continues; Esc cancels. Or click the keys.", 2,
-           muted);
-    label_button(c, ui::osk_shift, "Shift", 1, shift_ ? text : muted);
-    label_button(c, ui::osk_delete, "Delete", 1, muted);
-    label_button(c, ui::osk_run, password_entry_.confirming() ? "Save" : "Next", 1, cyan);
+    c.text(
+        96, 540,
+        tr("Type to edit. Tab selects buttons; Enter continues; Esc cancels. Or click the keys."),
+        2, muted);
+    label_button(c, ui::osk_shift, tr("Shift"), 1, shift_ ? text : muted);
+    label_button(c, ui::osk_delete, tr("Delete"), 1, muted);
+    label_button(c, ui::osk_run, password_entry_.confirming() ? tr("Save") : tr("Next"), 1, cyan);
     const auto keys = shift_ ? upper : lower;
     for (unsigned i = 0; i < 48; ++i)
     {
@@ -2777,11 +2808,12 @@ void App::draw_password(ps5::demo::Canvas &c) noexcept
             c.text(x + 53, y + 7, keys[i] == ' ' ? "_" : slice(keys, i, 1), 2,
                    i == selected_ ? bg : text);
     }
-    c.text(84, 900, "Mouse: click keys and buttons. Keyboard: Tab / Shift+Tab, Enter / Space.", 2,
+    c.text(84, 900, tr("Mouse: click keys and buttons. Keyboard: Tab / Shift+Tab, Enter / Space."),
+           2, muted);
+    c.text(84, 944,
+           tr("Controller: D-pad select, Cross type, R3 shift, Square delete, R2 next/save."), 1,
            muted);
-    c.text(84, 944, "Controller: D-pad select, Cross type, R3 shift, Square delete, R2 next/save.",
-           1, muted);
-    label_button(c, ui::help_back, "Cancel (Esc)", 2, muted);
+    label_button(c, ui::help_back, tr("Cancel (Esc)"), 2, muted);
 }
 } // namespace term
 
@@ -2914,7 +2946,7 @@ void App::search_key(Key k, char ch) noexcept
 void App::draw_search(ps5::demo::Canvas &c) noexcept
 {
     c.rectangle(64, 850, 1792, 76, surface);
-    c.text(84, 862, "Find (literal):", 1, cyan);
+    c.text(84, 862, tr("Find (literal):"), 1, cyan);
     const auto query = search_editor_.text();
     const auto cursor = search_editor_.cursor();
     // The query is validated UTF-8. Render codepoints rather than one '?' per
@@ -2942,17 +2974,17 @@ void App::draw_search(ps5::demo::Canvas &c) noexcept
             caret = x;
     }
     c.rectangle(caret, 884, 2, 20, cyan);
-    label_button(c, ui::search_previous, "Previous", 1, cyan);
-    label_button(c, ui::search_next, "Next", 1, cyan);
-    label_button(c, ui::search_refresh, "Refresh", 1, cyan);
-    label_button(c, ui::search_close, "Close (Esc)", 1, cyan);
+    label_button(c, ui::search_previous, tr("Previous"), 1, cyan);
+    label_button(c, ui::search_next, tr("Next"), 1, cyan);
+    label_button(c, ui::search_refresh, tr("Refresh"), 1, cyan);
+    label_button(c, ui::search_close, tr("Close (Esc)"), 1, cyan);
     c.rectangle(64, 936, 1792, 40, bg);
     char status[256];
-    std::snprintf(status, sizeof(status),
-                  "%zu / %zu%s%s  | Enter/Down: next; Up: previous; F5: refresh; Triangle: "
-                  "keyboard; L1/R1: matches; Circle: close",
-                  search_selected_ ? search_index_ + 1 : 0, search_.count(),
-                  search_.truncated() ? "+" : "", search_.busy() ? " (searching)" : "");
+    i18n::format(status, sizeof(status),
+                 trc("%zu / %zu%s%s  | Enter/Down: next; Up: previous; F5: refresh; Triangle: "
+                     "keyboard; L1/R1: matches; Circle: close"),
+                 search_selected_ ? search_index_ + 1 : 0, search_.count(),
+                 search_.truncated() ? "+" : "", search_.busy() ? tr(" (searching)") : "");
     c.text(84, 951, status, 1, cyan);
 }
 } // namespace term
@@ -2965,7 +2997,7 @@ void App::toggle_split() noexcept
     {
         split_ = false;
         sync_terminal_size();
-        tab_notice_ = "Full-width view; both shells keep running";
+        tab_notice_ = trc("Full-width view; both shells keep running");
         return;
     }
     const auto first = active_tab_;
@@ -2989,14 +3021,14 @@ void App::toggle_split() noexcept
     split_ = true;
     switch_tab(second);
     sync_terminal_size();
-    tab_notice_ = "Input goes to the highlighted pane; focus with Ctrl+Shift+O or L3 Actions";
+    tab_notice_ = trc("Input goes to the highlighted pane; focus with Ctrl+Shift+O or L3 Actions");
 }
 void App::focus_other_pane() noexcept
 {
     if (split_)
         switch_tab(panes_[active_tab_ == panes_[0] ? 1 : 0]);
     else
-        tab_notice_ = "Split first to show two terminal panes";
+        tab_notice_ = trc("Split first to show two terminal panes");
 }
 int App::pane_width(unsigned index) const noexcept
 {
@@ -3008,7 +3040,7 @@ void App::move_divider(int left) noexcept
 {
     if (!split_)
     {
-        tab_notice_ = "Split first to show two terminal panes";
+        tab_notice_ = trc("Split first to show two terminal panes");
         return;
     }
     left = ui::split_clamp(left);
@@ -3016,7 +3048,7 @@ void App::move_divider(int left) noexcept
         return;
     split_left_ = left;
     sync_terminal_size(); // both panes' programs see their new width
-    tab_notice_ = "Divider moved; drag it, Ctrl+Shift+Left/Right, or L3 Actions";
+    tab_notice_ = trc("Divider moved; drag it, Ctrl+Shift+Left/Right, or L3 Actions");
 }
 bool App::focus_pointer_pane() noexcept
 {
@@ -3042,23 +3074,24 @@ bool App::new_tab() noexcept
                          : nullptr;
         if (peer && !peer->alive())
         {
-            tab_notice_ = "Linux is starting or stopped; retry New tab when ready";
+            tab_notice_ = trc("Linux is starting or stopped; retry New tab when ready");
             return false;
         }
         auto tab =
             std::unique_ptr<Tab>(new (std::nothrow) Tab(model().rows(), model().columns(), peer));
         if (!tab || !tab->model.healthy())
         {
-            tab_notice_ = "Cannot allocate a terminal tab";
+            tab_notice_ = trc("Cannot allocate a terminal tab");
             return false;
         }
         tab->model.set_default_colors({212, 224, 237}, {0, 0, 0});
         tabs_[i] = std::move(tab);
         switch_tab(i + 1);
-        tab_notice_ = "New tab uses the current shell type; Settings controls the shared Linux VM";
+        tab_notice_ =
+            trc("New tab uses the current shell type; Settings controls the shared Linux VM");
         return true;
     }
-    tab_notice_ = "Four tabs maximum. Close a tab before opening another.";
+    tab_notice_ = trc("Four tabs maximum. Close a tab before opening another.");
     return false;
 }
 void App::switch_tab(unsigned index) noexcept
@@ -3109,7 +3142,7 @@ bool App::confirmed(ui::SettingsButton button) noexcept
 }
 void App::move_settings_focus(int direction) noexcept
 {
-    static constexpr unsigned order[] = {0, 3, 6, 7, 10, 8, 9, 4, 5, 1, 2, 11, 12};
+    static constexpr unsigned order[] = {0, 3, 6, 7, 10, 8, 13, 9, 4, 5, 1, 2, 11, 12};
     constexpr unsigned count = sizeof order / sizeof *order;
     unsigned at = 0;
     while (at < count && order[at] != settings_focus_)
@@ -3173,7 +3206,7 @@ void App::close_tab() noexcept
 {
     if (!active_tab_)
     {
-        tab_notice_ = "Primary tab owns the subsystem; use Settings to stop Linux";
+        tab_notice_ = trc("Primary tab owns the subsystem; use Settings to stop Linux");
         return;
     }
     const auto old = active_tab_;
@@ -3182,21 +3215,24 @@ void App::close_tab() noexcept
     switch_tab(survivor);
     tabs_[old - 1].reset();
     sync_terminal_size();
-    tab_notice_ = "Tab closed; other shells keep running";
+    tab_notice_ = trc("Tab closed; other shells keep running");
 }
 void App::draw_tabs(ps5::demo::Canvas &c) noexcept
 {
     label_button(c, ui::split_button,
-                 split_ ? pick("Unsplit (Ctrl+Shift+E)", "Unsplit", "Unsplit (L3 menu)")
-                        : pick("Split (Ctrl+Shift+E)", "Split", "Split (L3 menu)"),
+                 split_ ? pick(tr("Unsplit (Ctrl+Shift+E)"), tr("Unsplit"), tr("Unsplit (L3 menu)"))
+                        : pick(tr("Split (Ctrl+Shift+E)"), tr("Split"), tr("Split (L3 menu)")),
                  1, cyan);
-    label_button(c, ui::focus_pane_button,
-                 pick("Focus other (Ctrl+Shift+O)", "Focus other", "Focus other (L3 menu)"), 1,
-                 split_ ? cyan : muted);
+    label_button(
+        c, ui::focus_pane_button,
+        pick(tr("Focus other (Ctrl+Shift+O)"), tr("Focus other"), tr("Focus other (L3 menu)")), 1,
+        split_ ? cyan : muted);
     label_button(c, ui::new_tab_button,
-                 pick("New tab (Ctrl+Shift+T)", "New tab", "New tab (L3 menu)"), 1, cyan);
-    label_button(c, ui::close_tab_button, pick("Close (Ctrl+Shift+W)", "Close", "Close (L3 menu)"),
-                 1, active_tab_ ? cyan : muted);
+                 pick(tr("New tab (Ctrl+Shift+T)"), tr("New tab"), tr("New tab (L3 menu)")), 1,
+                 cyan);
+    label_button(c, ui::close_tab_button,
+                 pick(tr("Close (Ctrl+Shift+W)"), tr("Close"), tr("Close (L3 menu)")), 1,
+                 active_tab_ ? cyan : muted);
     for (unsigned i = 0; i < 4; ++i)
     {
         if (i && !tabs_[i - 1])
@@ -3204,8 +3240,9 @@ void App::draw_tabs(ps5::demo::Canvas &c) noexcept
         auto &connection = i ? tabs_[i - 1]->connection : connection_;
         char title[24];
         std::snprintf(title, sizeof title, "%u %s%s", i + 1,
-                      connection.environment() == Connection::Environment::linux_guest ? "Linux"
-                                                                                       : "console",
+                      connection.environment() == Connection::Environment::linux_guest
+                          ? trc("Linux")
+                          : trc("console"),
                       connection.failed() ? " !" : "");
         auto rect = ui::tab_button(i);
         if (i == active_tab_)

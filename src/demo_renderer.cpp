@@ -360,7 +360,42 @@ void Canvas::triangle(unsigned center_x, unsigned top, unsigned half_width, unsi
 void Canvas::text(unsigned x, unsigned y, std::string_view value, unsigned scale,
                   Color color) noexcept
 {
-    draw_text(pixels_, x, y, value, scale, color);
+    // ASCII runs use the native atlases; other UTF-8 characters (translations: accented Latin,
+    // Cyrillic) come from the Unicode atlas, one cell each.
+    const unsigned width = term::text_metrics::advance(scale);
+    std::size_t i = 0;
+    while (i < value.size() && x < frame_width)
+    {
+        std::size_t run = i;
+        while (run < value.size() && static_cast<unsigned char>(value[run]) < 0x80)
+            ++run;
+        if (run > i)
+        {
+            draw_text(pixels_, x, y, value.substr(i, run - i), scale, color);
+            x += static_cast<unsigned>(run - i) * width;
+            i = run;
+            continue;
+        }
+        const auto lead = static_cast<unsigned char>(value[i]);
+        std::size_t length = lead >= 0xF0 ? 4 : lead >= 0xE0 ? 3 : lead >= 0xC0 ? 2 : 1;
+        std::uint32_t code = lead & (length == 4 ? 0x07U : length == 3 ? 0x0FU : 0x1FU);
+        for (std::size_t k = 1; k < length; ++k)
+        {
+            const auto next = i + k < value.size() ? static_cast<unsigned char>(value[i + k]) : 0;
+            if ((next & 0xC0U) != 0x80U)
+            {
+                length = k; // Malformed: draw the replacement mark for what we have.
+                code = 0xFFFD;
+                break;
+            }
+            code = (code << 6) | (next & 0x3FU);
+        }
+        if (length == 1)
+            code = 0xFFFD;
+        glyph(x, y, code, color, scale);
+        x += width;
+        i += length;
+    }
 }
 
 bool Canvas::glyph(unsigned x, unsigned y, std::uint32_t code_point, Color color,
@@ -400,12 +435,29 @@ bool Canvas::glyph(unsigned x, unsigned y, std::uint32_t code_point, Color color
             draw_coverage(pixels_, x, y, source, width, height, foreground);
         else
         {
-            // Resample the Unicode atlas into the chosen cell; ASCII has native atlases.
+            // Resample the 10x20 Unicode atlas into the chosen cell (ASCII has native atlases):
+            // an area average, so small text keeps its accents and large text stays smooth.
             std::uint8_t coverage[15 * 30];
             for (unsigned row = 0; row < height; ++row)
                 for (unsigned col = 0; col < width; ++col)
+                {
+                    // Source rectangle in 1/(width*height) units of the 10x20 cell.
+                    const unsigned x0 = col * 10, x1 = (col + 1) * 10, y0 = row * 20,
+                                   y1 = (row + 1) * 20;
+                    unsigned sum = 0, area = 0;
+                    for (unsigned sy = y0 / height; sy * height < y1 && sy < 20; ++sy)
+                        for (unsigned sx = x0 / width; sx * width < x1 && sx < 10; ++sx)
+                        {
+                            const unsigned ox = std::min(x1, (sx + 1) * width) -
+                                                std::max(x0, sx * width),
+                                           oy = std::min(y1, (sy + 1) * height) -
+                                                std::max(y0, sy * height);
+                            sum += source[sy * 10 + sx] * ox * oy;
+                            area += ox * oy;
+                        }
                     coverage[row * width + col] =
-                        source[(row * 20 / height) * 10 + col * 10 / width];
+                        static_cast<std::uint8_t>(area ? (sum + area / 2) / area : 0);
+                }
             draw_coverage(pixels_, x, y, coverage, width, height, foreground);
         }
     }

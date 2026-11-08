@@ -13,6 +13,8 @@ class Settings
     }
     unsigned text_style() const noexcept;
     bool set_text_style(unsigned) noexcept;
+    unsigned language() const noexcept; // 0 = Auto (the console's language)
+    bool set_language(unsigned) noexcept;
     bool ssh_enabled() const noexcept;
     bool set_ssh_enabled(bool enabled) noexcept;
     static bool read_ssh_password(char *output, std::size_t capacity,

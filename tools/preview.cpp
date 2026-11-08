@@ -1,5 +1,6 @@
 // PS5Term - host rendering of the actual app scene. SPDX-License-Identifier: GPL-3.0-or-later
 #include "app.hpp"
+#include "i18n.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <string_view>
@@ -17,6 +18,11 @@ int main(int argc, char **argv)
         return 2;
     std::vector<std::uint32_t> pixels(16 * 1024 * 1024 / 4);
     term::app.welcome();
+    // Optional third argument: a language code (de, pt-BR, ...) to render in.
+    if (argc > 3)
+        for (unsigned language = term::i18n::english; language < term::i18n::count(); ++language)
+            if (term::i18n::code(language) == std::string_view(argv[3]))
+                term::i18n::select(language);
     std::string_view scene = argc > 2 ? argv[2] : "";
     // Mouse scenes drive the real App::mouse path with relative samples.
     std::uint64_t now = 10000000;

@@ -185,6 +185,7 @@ class App
     Settings settings_;
     unsigned text_style_ = 2;
     void cycle_text_size() noexcept;
+    void cycle_language() noexcept;
     Research research_;
     bool settings_open_ = false, ssh_enabled_ = false, settings_error_ = false;
     bool password_visible_ = false;

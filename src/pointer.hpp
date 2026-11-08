@@ -5,6 +5,7 @@
 // Layout constants mirror what App::draw paints, so a point on screen maps to
 // the same cell, key or button the user sees.
 #pragma once
+#include "i18n.hpp"
 #include <array>
 #include <cstddef>
 #include <cstdio>
@@ -158,33 +159,33 @@ constexpr std::string_view menu_label(MenuItem item) noexcept
     switch (item)
     {
     case MenuItem::copy:
-        return "Copy";
+        return N_("Copy");
     case MenuItem::paste:
-        return "Paste";
+        return N_("Paste");
     case MenuItem::select_all:
-        return "Select all";
+        return N_("Select all");
     case MenuItem::clear:
-        return "Clear";
+        return N_("Clear");
     case MenuItem::toggle_split:
-        return "Split / unsplit";
+        return N_("Split / unsplit");
     case MenuItem::focus_pane:
-        return "Focus other pane";
+        return N_("Focus other pane");
     case MenuItem::divider_left:
-        return "Divider left";
+        return N_("Divider left");
     case MenuItem::divider_right:
-        return "Divider right";
+        return N_("Divider right");
     case MenuItem::new_tab:
-        return "New tab";
+        return N_("New tab");
     case MenuItem::close_tab:
-        return "Close tab";
+        return N_("Close tab");
     case MenuItem::previous_tab:
-        return "Previous tab";
+        return N_("Previous tab");
     case MenuItem::next_tab:
-        return "Next tab";
+        return N_("Next tab");
     case MenuItem::search:
-        return "Find text";
+        return N_("Find text");
     case MenuItem::select_text:
-        return "Select text";
+        return N_("Select text");
     case MenuItem::none:
         break;
     }
@@ -310,11 +311,13 @@ enum class SettingsButton
     expand_storage,
     text_size,
     open_alpine,
-    about
+    about,
+    language
 };
 // Settings rows: SSH 208-628, Linux 644-848 (buttons on their own row, status lines
 // full width below), mouse/text 864-920, actions 932-1048.
 constexpr Rect text_size_button{1260, 870, 160, 44};
+constexpr Rect language_button{640, 870, 600, 44};
 constexpr Rect alpine_button{668, 712, 300, 40};
 constexpr Rect storage_expand{988, 712, 816, 40};
 constexpr Rect linux_switch{1320, 656, 484, 44};

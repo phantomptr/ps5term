@@ -12,6 +12,8 @@
   "chips.colour.title": "Màu sắc và Unicode",
   "chips.input.text": "Bàn phím, chuột hoặc tay cầm: mọi thao tác đều làm được với từng thứ.",
   "chips.input.title": "Chỉ một thiết bị là đủ",
+  "chips.lang.text": "Ứng dụng theo ngôn ngữ PS5 của bạn với 11 ngôn ngữ, từ tiếng Anh đến tiếng Nga; trang này có 21 ngôn ngữ.",
+  "chips.lang.title": "Bằng ngôn ngữ của bạn",
   "chips.native.text": "ls, cat, cp, grep, sha256sum, ps, sysinfo và nhiều lệnh khác, trên chính các tệp của PS5.",
   "chips.native.title": "Shell native",
   "chips.search.text": "Tìm chữ trong kết quả, chọn rồi dán lại.",

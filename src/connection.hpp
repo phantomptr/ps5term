@@ -1,6 +1,7 @@
 // PS5Term - nonblocking local shell connection. GPL-3.0-or-later.
 #pragma once
 #include "terminal_model.hpp"
+#include "i18n.hpp"
 #include "terminal_transport.hpp"
 #include "telnet.hpp"
 #include "builtin_shell.hpp"
@@ -119,7 +120,7 @@ class Connection
     int fd_ = -1, file_ = -1;
     bool launched_ = false;
     std::uint64_t deadline_ = 0, next_ = 0;
-    std::string_view status_ = "Starting local shell";
+    std::string_view status_ = N_("Starting local shell");
     Telnet telnet_;
     std::array<char, 8192> outgoing_{};
     std::size_t queued_ = 0, sent_ = 0;

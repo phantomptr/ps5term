@@ -22,6 +22,7 @@ name the keys of the input used last: keyboard, mouse or controller.
 | Expand persistent storage | Settings: focus Expand, Enter | Expand button | Focus Expand, Cross (Linux stopped) |
 | Open/install Alpine with apk | Settings: focus Open Alpine, Enter | Open Alpine button | Focus Open Alpine, Cross |
 | Text size | Settings: focus Text, Enter | Text size button | Focus Text, Cross |
+| Language (Auto follows the PS5) | Settings: focus Language, Enter | Language button | Focus Language, Cross |
 | Reconnect | F5 in the built-in shell, or once Linux has stopped | Reconnect button; click twice to restart a running Linux | Cross when offline |
 | Interrupt command | Ctrl+C | Interrupt button | L2+Circle, or Ctrl then c |
 | On-screen keyboard | Ctrl+Shift+K; F4 in the built-in shell | Keyboard button | Triangle |

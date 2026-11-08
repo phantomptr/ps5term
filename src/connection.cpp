@@ -1,5 +1,6 @@
 // PS5Term - GPL-3.0-or-later.
 #include "connection.hpp"
+#include "i18n.hpp"
 #include "network.hpp"
 #include <cerrno>
 #include <cstdio>
@@ -37,8 +38,8 @@ bool Connection::select_environment(Environment environment) noexcept
     }
     reconnect();
     environment_ = environment;
-    status_ =
-        environment == Environment::linux_guest ? "Starting Linux guest" : "Starting console shell";
+    status_ = environment == Environment::linux_guest ? N_("Starting Linux guest")
+                                                      : N_("Starting console shell");
     return true;
 }
 void Connection::reconnect() noexcept
@@ -63,7 +64,7 @@ void Connection::reconnect() noexcept
     builtin_.reset();
     transport_.reset();
     state_ = State::idle;
-    status_ = "Starting shell";
+    status_ = N_("Starting shell");
 }
 bool Connection::submit(std::string_view command) noexcept
 {
@@ -142,7 +143,7 @@ void Connection::tick_native(TerminalModel &model) noexcept
     {
         model.feed("\r\n[shell exited]\r\n");
         state_ = State::failed;
-        status_ = "Shell exited";
+        status_ = N_("Shell exited");
         return;
     }
 }
@@ -202,7 +203,7 @@ void Connection::tick_linux(TerminalModel &model) noexcept
     {
         model.feed("\r\n[Linux guest stopped]\r\n");
         state_ = State::failed;
-        status_ = "Linux guest stopped; Reconnect retries";
+        status_ = N_("Linux guest stopped; Reconnect retries");
         if (!guest_peer_)
             linux_vm_.stop();
         return;
@@ -224,15 +225,16 @@ void Connection::tick(TerminalModel &model, std::uint64_t) noexcept
             if (!guest_handle_)
             {
                 state_ = State::failed;
-                status_ = guest_peer_->alive()
-                              ? "Linux shell slots full; close a tab or SSH session, then Reconnect"
-                              : "Linux is stopped or starting; Reconnect when ready";
+                status_ =
+                    guest_peer_->alive()
+                        ? N_("Linux shell slots full; close a tab or SSH session, then Reconnect")
+                        : N_("Linux is stopped or starting; Reconnect when ready");
                 model.feed(status_);
                 return;
             }
             linux_ = true;
             state_ = State::ready;
-            status_ = "Independent Linux shell";
+            status_ = N_("Independent Linux shell");
             model.feed("\033[20l");
             tick_linux(model);
             return;
@@ -242,7 +244,7 @@ void Connection::tick(TerminalModel &model, std::uint64_t) noexcept
             if (try_linux(model))
             {
                 state_ = State::ready;
-                status_ = "Linux guest running";
+                status_ = N_("Linux guest running");
             }
             else
             {
@@ -258,7 +260,7 @@ void Connection::tick(TerminalModel &model, std::uint64_t) noexcept
         if (try_native(model))
         {
             state_ = State::ready;
-            status_ = "Native shell ready";
+            status_ = N_("Native shell ready");
             resize(static_cast<unsigned>(model.columns()), static_cast<unsigned>(model.rows()));
             return;
         }
@@ -266,7 +268,7 @@ void Connection::tick(TerminalModel &model, std::uint64_t) noexcept
                    "Basic command mode; no PTY or external loader required.\n\n");
         builtin_.submit("");
         state_ = State::ready;
-        status_ = "Built-in shell ready";
+        status_ = N_("Built-in shell ready");
     }
     if (native_)
     {
@@ -393,7 +395,7 @@ void Connection::tick(TerminalModel &model, std::uint64_t now) noexcept
         return;
     if (state_ == State::idle)
     {
-        status_ = "Connecting to local shell";
+        status_ = N_("Connecting to local shell");
         deadline_ = now + 2000000;
         if (connect_port(2324) < 0)
         {
@@ -410,10 +412,10 @@ void Connection::tick(TerminalModel &model, std::uint64_t now) noexcept
         if (!launched_)
         {
             launched_ = true;
-            status_ = "Starting bundled shell via elfldr";
+            status_ = N_("Starting bundled shell via elfldr");
             if (connect_port(9021) < 0)
             {
-                fail(screen, "ELF loader unavailable");
+                fail(screen, N_("ELF loader unavailable"));
                 return;
             }
             state_ = State::loader_connect;
@@ -423,7 +425,7 @@ void Connection::tick(TerminalModel &model, std::uint64_t now) noexcept
         {
             if (now > deadline_)
             {
-                fail(screen, "Shell did not become ready");
+                fail(screen, N_("Shell did not become ready"));
                 return;
             }
             if (connect_port(2324) < 0)
@@ -441,7 +443,7 @@ void Connection::tick(TerminalModel &model, std::uint64_t now) noexcept
         if (ready <= 0)
         {
             if (now > deadline_)
-                fail(screen, "Connection timed out");
+                fail(screen, N_("Connection timed out"));
             return;
         }
         int error = 0;
@@ -451,7 +453,7 @@ void Connection::tick(TerminalModel &model, std::uint64_t now) noexcept
         {
             if (state_ == State::loader_connect)
             {
-                fail(screen, "ELF loader refused the connection");
+                fail(screen, N_("ELF loader refused the connection"));
                 return;
             }
             close_socket();
@@ -462,14 +464,14 @@ void Connection::tick(TerminalModel &model, std::uint64_t now) noexcept
         if (state_ == State::connecting)
         {
             state_ = State::ready;
-            status_ = "Local shell connected";
+            status_ = N_("Local shell connected");
         }
         else
         {
             file_ = ::open("/app0/assets/backend/ps5term-sh.elf", O_RDONLY);
             if (file_ < 0)
             {
-                fail(screen, "Bundled shell payload missing");
+                fail(screen, N_("Bundled shell payload missing"));
                 return;
             }
             state_ = State::uploading;
@@ -480,12 +482,12 @@ void Connection::tick(TerminalModel &model, std::uint64_t now) noexcept
     {
         if (now > deadline_)
         {
-            fail(screen, "Shell upload timed out");
+            fail(screen, N_("Shell upload timed out"));
             return;
         }
         if (!flush())
         {
-            fail(screen, "Shell upload failed");
+            fail(screen, N_("Shell upload failed"));
             return;
         }
         if (queued_)
@@ -498,7 +500,7 @@ void Connection::tick(TerminalModel &model, std::uint64_t now) noexcept
         }
         if (n < 0)
         {
-            fail(screen, "Cannot read shell payload");
+            fail(screen, N_("Cannot read shell payload"));
             return;
         }
         ::close(file_);
@@ -508,14 +510,14 @@ void Connection::tick(TerminalModel &model, std::uint64_t now) noexcept
         state_ = State::waiting;
         deadline_ = now + 15000000;
         next_ = now + 500000;
-        status_ = "Waiting for shell startup";
+        status_ = N_("Waiting for shell startup");
         return;
     }
     if (state_ != State::ready)
         return;
     if (!flush())
     {
-        fail(screen, "Shell disconnected");
+        fail(screen, N_("Shell disconnected"));
         return;
     }
     std::array<char, 4096> input{};
@@ -528,20 +530,20 @@ void Connection::tick(TerminalModel &model, std::uint64_t now) noexcept
             model.feed(telnet_.feed(input.data(), static_cast<std::size_t>(n)));
             if (!queue(telnet_.reply()))
             {
-                fail(screen, "Protocol buffer full");
+                fail(screen, N_("Protocol buffer full"));
                 return;
             }
         }
         else if (n == 0)
         {
-            fail(screen, "Shell session ended");
+            fail(screen, N_("Shell session ended"));
             return;
         }
         else if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
             return;
         else
         {
-            fail(screen, "Shell receive failed");
+            fail(screen, N_("Shell receive failed"));
             return;
         }
     }

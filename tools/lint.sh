@@ -38,6 +38,7 @@ while IFS= read -r script; do
     bash -n "$script"
 done < <(find tools -maxdepth 1 -type f -name '*.sh' -print)
 bash tools/validate-assets.sh
+python3 tools/generate-i18n.py >/dev/null
 
 python3 - <<'PY'
 from pathlib import Path

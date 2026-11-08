@@ -302,6 +302,8 @@ SettingsButton settings_button_at(int px, int py) noexcept
         return SettingsButton::toggle_linux;
     if (alpine_button.contains(px, py))
         return SettingsButton::open_alpine;
+    if (language_button.contains(px, py))
+        return SettingsButton::language;
     if (text_size_button.contains(px, py))
         return SettingsButton::text_size;
     if (storage_expand.contains(px, py))
