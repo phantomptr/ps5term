@@ -10,9 +10,9 @@ Checked against the catalog's `docs/submitting.md` and `catalog/verify.py` on 20
 | Requirement | PS5Term |
 |---|---|
 | A published GitHub release with one `.zip` of the app folder, folder at the top | `dist/PS5Term-<version>.zip` contains `FAKE99260/` only |
-| `sce_sys/param.json` committed, with `titleId` and a `contentVersion` raised every release | `FAKE99260`, `00.001.000` |
+| `sce_sys/param.json` committed, with `titleId` and a `contentVersion` raised every release | `FAKE99260`, `00.001.001` |
 | A title ID no other listed app uses | `FAKE99260` is not listed (2026-11-07) |
-| Release tag equals the record's `version` | tag `00.001.000` |
+| Release tag equals the record's `version` | tag `00.001.001` |
 | 512×512 icon at a stable URL pinned to the tag | `sce_sys/icon0.png`, 512×512 PNG |
 | License agrees with GitHub's detection | `GPL-3.0-or-later` matches `GPL-3.0` |
 | Description: one plain sentence, 200 characters at most | 141 characters |
@@ -33,13 +33,19 @@ Checked against the catalog's `docs/submitting.md` and `catalog/verify.py` on 20
 
 4. Install that exact ZIP on a test console and check it opens, SSH works for both
    logins, and Linux starts.
-5. Commit, tag the commit with the version (`00.001.000`), push, and publish a GitHub
+5. Commit, tag the commit with the version (`00.001.001`), push, and publish a GitHub
    release with the ZIP as its only asset. Paste the release notes below.
 6. Run `python3 tools/catalog-record.py` for the `apps/FAKE99260.json` record, or use
    the [submit page](https://prosperostore.net/submit/). Open the pull request from
    the account that owns `phantomptr/ps5term`.
 
 Never replace a published asset. A fix is a new version with a new tag.
+
+## Release notes: 00.001.001
+
+- Start Linux and Stop Linux in Settings now take you straight to the shell.
+- About (Settings → About PS5Term, or F1 in Settings) shows the version, credits and the
+  new website, [ps5term.phantomptr.com](https://ps5term.phantomptr.com/).
 
 ## Release notes draft: 00.001.000
 

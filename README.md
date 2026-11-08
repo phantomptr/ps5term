@@ -126,7 +126,7 @@ middle-click to paste, and the wheel scrolls.
 make release
 ```
 
-Build on Linux. Output: `dist/FAKE99260/` and `dist/PS5Term-00.001.000.zip`. The
+Build on Linux. Output: `dist/FAKE99260/` and `dist/PS5Term-<version>.zip`. The
 release build, its definitions and the checks to run first are in
 [releasing](docs/RELEASE.md); see also [testing](docs/TESTING.md) and
 [getting started](docs/GETTING_STARTED.md).
