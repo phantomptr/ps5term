@@ -59,6 +59,8 @@ int main(int argc, char **argv)
         term::app.key(term::Key::settings);
         if (scene == "settings-mouse")
             sample(1700, 850, 0);
+        if (scene == "about")
+            term::app.key(term::Key::function, 1); // F1 in Settings
     }
     ps5::demo::Canvas canvas(pixels.data());
     term::app.draw(canvas);

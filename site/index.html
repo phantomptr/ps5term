@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title data-i18n="meta.title">PS5Term — a terminal for your PS5</title>
+  <meta name="description" data-i18n-attr="content:meta.description" content="PS5Term is a terminal for a jailbroken PS5, on the console's own screen: a native shell for the PS5's files, a real Linux shell with curl, nano, tmux and htop, and SSH and SFTP from your computer. Free and open source." />
+  <meta property="og:title" content="PS5Term" />
+  <meta property="og:description" data-i18n-attr="content:meta.og" content="A terminal on your PS5's screen: a native shell, a real Linux shell, and SSH and SFTP from your computer. Free and open source." />
+  <meta property="og:image" content="https://ps5term.phantomptr.com/assets/og.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:url" content="https://ps5term.phantomptr.com/" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="color-scheme" content="light dark" />
+  <link rel="canonical" id="canonical" href="https://ps5term.phantomptr.com/" />
+  <link rel="icon" href="assets/favicon.png" />
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+  <link rel="stylesheet" href="style.css" />
+  <!-- The language, decided before anything is drawn (the same list as app.js and PS5Upload's
+       site): the page waits for its words instead of flashing English, and right-to-left
+       languages lay out that way from the start. -->
+  <script>
+    (function () {
+      var codes = ["en","zh-CN","zh-TW","hi","es","ar","bn","pl","pt-BR","ru","ja","de","fr","ko","tr","vi","id","it","th","hu","fa"];
+      var pick = function (c) {
+        if (!c) return null;
+        c = String(c).toLowerCase();
+        for (var i = 0; i < codes.length; i++) if (codes[i].toLowerCase() === c) return codes[i];
+        if (/^zh-(tw|hk|mo|hant)/.test(c)) return "zh-TW";
+        if (/^zh/.test(c)) return "zh-CN";
+        if (/^pt/.test(c)) return "pt-BR";
+        var p = c.split("-")[0];
+        return codes.indexOf(p) >= 0 ? p : null;
+      };
+      var lang = null;
+      try { lang = pick(new URLSearchParams(location.search).get("lang")) || pick(localStorage.getItem("ps5term.site.lang")); } catch (e) {}
+      if (!lang) {
+        var nav = navigator.languages || [navigator.language];
+        for (var j = 0; j < nav.length && !lang; j++) lang = pick(nav[j]);
+      }
+      lang = lang || "en";
+      var root = document.documentElement;
+      root.lang = lang;
+      root.dir = lang === "ar" || lang === "fa" ? "rtl" : "ltr";
+      if (/[?&]lang=/.test(location.search)) {
+        document.getElementById("canonical").href = "https://ps5term.phantomptr.com/?lang=" + lang;
+      }
+      if (lang !== "en") {
+        root.classList.add("i18n-wait");
+        setTimeout(function () { root.classList.remove("i18n-wait"); }, 2500);
+      }
+    })();
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main" data-i18n="nav.skip">Skip to content</a>
+
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="#">
+        <img src="assets/logo.png" alt="" width="34" height="34" />
+        <span>PS5Term</span>
+      </a>
+      <nav class="nav" data-i18n-attr="aria-label:nav.sections" aria-label="Sections">
+        <a href="#features" data-i18n="nav.features">Features</a>
+        <a href="#guide" data-i18n="nav.guide">Get started</a>
+        <a href="#ssh" data-i18n="nav.ssh">SSH</a>
+        <a href="#controls" data-i18n="nav.controls">Controls</a>
+        <a href="#credits" data-i18n="nav.credits">Credits</a>
+        <a href="#support" data-i18n="nav.support">Support</a>
+      </nav>
+      <div class="top-actions">
+        <a class="btn small coffee" href="#support" data-i18n-attr="title:nav.coffee_title" title="PS5Term is free. A coffee for me, or tokens for the AI that writes the code, keeps it going.">☕ <span data-i18n="nav.coffee">Coffee or tokens</span></a>
+        <label class="lang" data-i18n-attr="title:nav.language" title="Language">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm-9-9h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3Z"/></svg>
+          <select id="lang" data-i18n-attr="aria-label:nav.language" aria-label="Language"></select>
+        </label>
+        <a class="icon-btn" href="https://github.com/phantomptr/ps5term" data-i18n-attr="aria-label:nav.github" aria-label="PS5Term on GitHub" title="GitHub">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.27 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+        </a>
+        <button class="icon-btn" id="theme" type="button" data-i18n-attr="aria-label:nav.theme_label;title:nav.theme_title" aria-label="Switch light or dark" title="Light or dark">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="wrap hero-row">
+        <div class="hero-text">
+          <div class="hero-pills">
+            <p class="eyebrow" id="hero-version" data-i18n="hero.eyebrow">Free and open source</p>
+          </div>
+          <h1 data-i18n="hero.title">A real terminal, <span class="grad">on your PS5</span>.</h1>
+          <p class="lead" data-i18n="hero.lead">
+            PS5Term runs on the console's own screen: a native shell for the PS5's files, a real
+            Linux shell with curl, nano, tmux and htop, and SSH and SFTP from your computer. Use a
+            keyboard, a mouse or just the controller.
+          </p>
+          <div class="hero-cta">
+            <a class="btn primary" id="hero-download" href="https://github.com/phantomptr/ps5term/releases/latest">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14"/></svg>
+              <span data-i18n="hero.download">Download</span>
+            </a>
+            <a class="btn" href="#guide" data-i18n="hero.start">Get started</a>
+          </div>
+          <p class="fine" data-i18n="hero.fine">For a jailbroken PS5 with a homebrew launcher. Tested on firmware 13.60.</p>
+        </div>
+        <div class="hero-stage">
+          <figure class="shot console">
+            <img src="assets/shots/shell.webp" data-i18n-attr="alt:alt.shell" alt="PS5Term on a PS5: a Linux shell running uname, free, curl over HTTPS and df." width="1920" height="1080" />
+          </figure>
+        </div>
+      </div>
+      <ul class="wrap badges" data-i18n-attr="aria-label:badges.label" aria-label="At a glance">
+        <li data-i18n="badges.shells"><b>2</b> shells: native and Linux</li>
+        <li data-i18n="badges.inputs"><b>3</b> ways to drive it: keyboard, mouse, controller</li>
+        <li data-i18n="badges.ssh"><b>1</b> SSH and SFTP server built in</li>
+        <li data-i18n="badges.cost"><b>0</b> cost: free and open source</li>
+      </ul>
+    </section>
+
+    <section class="section" id="features" aria-labelledby="features-title">
+      <div class="wrap">
+        <p class="kicker" data-i18n="features.kicker">What it does</p>
+        <h2 id="features-title" data-i18n="features.title">Your console, with a command line</h2>
+        <p class="section-lead" data-i18n="features.lead">Everything runs inside the app. No payload to send, no separate SSH server and no computer needed to use it.</p>
+        <div class="tour-row">
+          <div class="tour-text">
+            <h3 data-i18n="features.linux.title">A real Linux shell</h3>
+            <ul class="ticks">
+              <li data-i18n="features.linux.t1">RISC-V Linux 6.12 with BusyBox, curl with HTTPS, nano, tmux, htop, jq and less.</li>
+              <li data-i18n="features.linux.t2">Files in <b>/mnt/data</b> stay between starts; add Alpine and its <b>apk</b> packages.</li>
+              <li data-i18n="features.linux.t3">The PS5's own files are at <b>/mnt/ps5</b>. Internet goes out through the app; nothing can connect in.</li>
+            </ul>
+          </div>
+          <figure class="shot console">
+            <img src="assets/shots/htop.webp" data-i18n-attr="alt:alt.htop" alt="htop running in Linux inside PS5Term on a PS5." width="1920" height="1080" loading="lazy" />
+          </figure>
+        </div>
+        <div class="grid chips">
+          <div class="chip-card"><span class="ico" aria-hidden="true">🗂️</span><b data-i18n="chips.native.title">Native shell</b><span data-i18n="chips.native.text">ls, cat, cp, grep, sha256sum, ps, sysinfo and more, on the PS5's own files.</span></div>
+          <div class="chip-card"><span class="ico" aria-hidden="true">🔐</span><b data-i18n="chips.ssh.title">SSH and SFTP</b><span data-i18n="chips.ssh.text">Log in from your computer with a password or your own key.</span></div>
+          <div class="chip-card"><span class="ico" aria-hidden="true">🗔</span><b data-i18n="chips.tabs.title">Tabs and split panes</b><span data-i18n="chips.tabs.text">Up to four sessions, side by side if you like.</span></div>
+          <div class="chip-card"><span class="ico" aria-hidden="true">🔎</span><b data-i18n="chips.search.title">Search and copy</b><span data-i18n="chips.search.text">Find text in the output, select it and paste it back.</span></div>
+          <div class="chip-card"><span class="ico" aria-hidden="true">🎨</span><b data-i18n="chips.colour.title">Colour and Unicode</b><span data-i18n="chips.colour.text">Full colour, box drawing and accented text at native 1080p.</span></div>
+          <div class="chip-card"><span class="ico" aria-hidden="true">🎮</span><b data-i18n="chips.input.title">Any input, alone</b><span data-i18n="chips.input.text">Keyboard, mouse or controller: every action works with each.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section alt" id="guide" aria-labelledby="guide-title">
+      <div class="wrap">
+        <p class="kicker" data-i18n="guide.kicker">Guide</p>
+        <h2 id="guide-title" data-i18n="guide.title">Get started in three steps</h2>
+        <ol class="steps">
+          <li class="step">
+            <span class="num">1</span>
+            <div>
+              <h3 data-i18n="guide.s1.title">Download and copy</h3>
+              <p data-i18n="guide.s1.text">Download the ZIP from the latest release and copy the <b>FAKE99260</b> folder in it to <b>/data/homebrew/FAKE99260</b> on the console, for example with PS5Upload.</p>
+            </div>
+          </li>
+          <li class="step">
+            <span class="num">2</span>
+            <div>
+              <h3 data-i18n="guide.s2.title">Open PS5Term</h3>
+              <p data-i18n="guide.s2.text">Launch it from your homebrew launcher. The built-in shell is ready; type <b>help</b>.</p>
+            </div>
+          </li>
+          <li class="step">
+            <span class="num">3</span>
+            <div>
+              <h3 data-i18n="guide.s3.title">Turn on what you need</h3>
+              <p data-i18n="guide.s3.text">Open Settings (Options on the controller) to start Linux or switch on SSH. Settings shows the password and the exact command to connect.</p>
+              <figure class="shot small console">
+                <img src="assets/shots/settings.webp" data-i18n-attr="alt:alt.settings" alt="PS5Term's Settings: SSH server, Linux, mouse speed and text size." width="1920" height="1080" loading="lazy" />
+              </figure>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section" id="ssh" aria-labelledby="ssh-title">
+      <div class="wrap">
+        <p class="kicker" data-i18n="ssh.kicker">From your computer</p>
+        <h2 id="ssh-title" data-i18n="ssh.title">SSH and SFTP on port 2222</h2>
+        <p class="section-lead" data-i18n="ssh.lead">Both logins use the password shown in Settings, or your own public key. Replace the address with your console's.</p>
+        <div class="grid community three">
+          <div class="card">
+            <h3 data-i18n="ssh.linux.title">A Linux shell</h3>
+            <p class="muted" data-i18n="ssh.linux.text">Starts Linux if it isn't running. Works with full-screen programs and terminal apps such as Ghostty and Warp.</p>
+            <div class="copy"><code id="cmd-linux">ssh -p 2222 linux@192.168.1.50</code><button class="btn small" type="button" data-copy="cmd-linux" data-i18n="ssh.copy">Copy</button></div>
+          </div>
+          <div class="card">
+            <h3 data-i18n="ssh.native.title">The native shell</h3>
+            <p class="muted" data-i18n="ssh.native.text">The PS5's own files and system commands.</p>
+            <div class="copy"><code id="cmd-native">command ssh -T -p 2222 ps5term@192.168.1.50</code><button class="btn small" type="button" data-copy="cmd-native" data-i18n="ssh.copy">Copy</button></div>
+          </div>
+          <div class="card">
+            <h3 data-i18n="ssh.sftp.title">File transfer</h3>
+            <p class="muted" data-i18n="ssh.sftp.text">Any SFTP client works, starting in /data.</p>
+            <div class="copy"><code id="cmd-sftp">sftp -P 2222 ps5term@192.168.1.50</code><button class="btn small" type="button" data-copy="cmd-sftp" data-i18n="ssh.copy">Copy</button></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section alt" id="controls" aria-labelledby="controls-title">
+      <div class="wrap">
+        <p class="kicker" data-i18n="controls.kicker">Controls</p>
+        <h2 id="controls-title" data-i18n="controls.title">Keyboard, mouse or controller</h2>
+        <p class="section-lead" data-i18n="controls.lead">Use whichever you have. The hints on screen name the keys of what you used last.</p>
+        <div class="grid community three">
+          <div class="card">
+            <span class="ico" aria-hidden="true">⌨️</span>
+            <h3 data-i18n="controls.kb.title">Keyboard</h3>
+            <p data-i18n="controls.kb.text">Type as usual. <b>Shift+F10</b> opens the actions menu, <b>Ctrl+Shift+S</b> Settings. In a Linux program every F-key belongs to the program.</p>
+          </div>
+          <div class="card">
+            <span class="ico" aria-hidden="true">🖱️</span>
+            <h3 data-i18n="controls.mouse.title">Mouse</h3>
+            <p data-i18n="controls.mouse.text">Click any button or on-screen key, drag to select, right-click for the menu and middle-click to paste.</p>
+          </div>
+          <div class="card">
+            <span class="ico" aria-hidden="true">🎮</span>
+            <h3 data-i18n="controls.pad.title">Controller</h3>
+            <p data-i18n="controls.pad.text"><b>Triangle</b> opens the on-screen keyboard, <b>R2</b> runs, <b>L3</b> opens actions and <b>Options</b> Settings. Its keyboard has Esc, Tab, Ctrl, arrows and F1–F10.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="credits" aria-labelledby="credits-title">
+      <div class="wrap">
+        <p class="kicker" data-i18n="credits.kicker">Credits</p>
+        <h2 id="credits-title" data-i18n="credits.title">Built on other people's work</h2>
+        <p class="section-lead" data-i18n="credits.lead">Thank you to everyone behind these projects. Each keeps its own license; the full list is in the README and NOTICE.md.</p>
+        <div class="tour-row">
+          <div class="tour-text">
+            <ul class="ticks credits">
+              <li><b>ps5-native-app-boilerplate</b> — BlackBearReloaded</li>
+              <li><b>PS5 Payload SDK</b>, <b>shsrv</b> — John Törnblom</li>
+              <li><b>ps5sshd</b> — intestinate</li>
+              <li><b>wolfSSH</b>, <b>wolfSSL</b> — wolfSSL Inc.</li>
+              <li><b>libvterm</b> — Paul Evans</li>
+              <li><b>TinyEMU</b> — Fabrice Bellard</li>
+              <li><b>libslirp</b> — the QEMU project</li>
+              <li><b>Buildroot</b>, <b>Linux</b>, <b>OpenSBI</b>, <b>musl</b>, <b>BusyBox</b>, <b>Alpine Linux</b></li>
+              <li><b>JetBrains Mono</b> — JetBrains · <b>font8x8</b> — Daniel Hepper</li>
+            </ul>
+            <p class="muted" data-i18n="credits.scene">PS5Term is one tool among many. If something here helps you, please support the people behind the PS5 scene's tools too.</p>
+          </div>
+          <figure class="shot console">
+            <img src="assets/shots/about.webp" data-i18n-attr="alt:alt.about" alt="PS5Term's About screen: version, credits and disclaimer." width="1920" height="1080" loading="lazy" />
+          </figure>
+        </div>
+        <div class="card">
+          <h3 data-i18n="credits.disclaimer.title">Disclaimer</h3>
+          <p class="muted" data-i18n="credits.disclaimer.text">PS5Term is for research, education, interoperability and homebrew development. It is not affiliated with or endorsed by Sony Interactive Entertainment. It is provided as is, without warranty: a modified console can be damaged, lose data or be banned, and the SSH server opens a port on your network. Use it at your own risk, only with hardware and content you own.</p>
+          <p class="extras"><a class="btn small" href="https://github.com/phantomptr/ps5term/blob/main/DISCLAIMER.md" data-i18n="credits.disclaimer.read">Read the full terms</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section alt" id="support" aria-labelledby="support-title">
+      <div class="wrap">
+        <div class="thanks-hero">
+          <span class="thanks-heart" aria-hidden="true">♥</span>
+          <h2 id="support-title" data-i18n="support.title">Thank you</h2>
+          <p class="section-lead" data-i18n="support.lead">PS5Term is free. A coffee for me, or tokens for the AI that writes the code, keeps it going.</p>
+        </div>
+        <div class="grid community three">
+          <a class="card link-card" href="https://ko-fi.com/B0B81S0WUA">
+            <h3>☕ Ko-fi</h3>
+            <p data-i18n="support.kofi">Card or PayPal, once or monthly.</p>
+          </a>
+          <a class="card link-card" href="https://ps5upload.phantomptr.com/#thanks">
+            <h3 data-i18n="support.crypto.title">Crypto</h3>
+            <p data-i18n="support.crypto.text">Addresses and QR codes are on PS5Upload's site; it's the same wallet.</p>
+          </a>
+          <a class="card link-card" href="https://discord.gg/fzK3xddtrM">
+            <h3>Discord</h3>
+            <p data-i18n="support.discord">Questions, reports from other firmware and ideas are welcome.</p>
+          </a>
+        </div>
+        <p class="muted" data-i18n="support.more">Also by PhantomPtr: <a href="https://ps5upload.phantomptr.com/">PS5Upload</a>, to send games, apps and homebrew to your PS5 and play it from any screen.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-row">
+      <span data-i18n="foot.made">Made by <a href="https://phantomptr.com/">PhantomPtr</a>. PS5Term is free software under the GPL-3.0.</span>
+      <span class="muted" data-i18n="foot.sony">Not affiliated with Sony Interactive Entertainment.</span>
+    </div>
+  </footer>
+
+  <script src="app.js" defer></script>
+</body>
+</html>

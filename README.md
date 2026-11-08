@@ -15,6 +15,7 @@
   <a href="https://github.com/phantomptr/ps5term/releases"><img alt="release" src="https://img.shields.io/github/v/release/phantomptr/ps5term?display_name=tag&sort=semver&color=blue" /></a>
   <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-GPL--3-green" /></a>
   <img alt="firmware" src="https://img.shields.io/badge/PS5_firmware-13.60_tested-brightgreen" />
+  <a href="https://ps5term.phantomptr.com/"><img alt="website" src="https://img.shields.io/badge/website-ps5term.phantomptr.com-59e5ce" /></a>
   <a href="https://discord.gg/fzK3xddtrM"><img alt="discord" src="https://img.shields.io/badge/discord-join-5865F2" /></a>
 </p>
 
@@ -64,9 +65,12 @@ Host-rendered previews of the actual app scene (not console screenshots):
 <p align="center">
   <img src="docs/images/terminal.png" alt="The terminal" width="720" />
   <img src="docs/images/settings.png" alt="Settings" width="720" />
+  <img src="docs/images/about.png" alt="About" width="720" />
 </p>
 
 ## Install
+
+Website: **[ps5term.phantomptr.com](https://ps5term.phantomptr.com/)**.
 
 Download `PS5Term-<version>.zip` from the
 [Releases page](https://github.com/phantomptr/ps5term/releases), copy the complete
@@ -234,6 +238,7 @@ Corresponding source for the Linux guest is described in [SUBSYSTEM.md](docs/SUB
 ## Author
 
 Created and maintained by **PhantomPtr** ([phantomptr.com](https://phantomptr.com/)).
+PS5Term's website: [ps5term.phantomptr.com](https://ps5term.phantomptr.com/).
 
 * [Follow me on X (@phantomptr)](https://x.com/phantomptr)
 * Also by PhantomPtr: [PS5Upload](https://github.com/phantomptr/ps5upload), which sends

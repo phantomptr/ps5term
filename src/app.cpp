@@ -1504,13 +1504,13 @@ void App::draw_about(ps5::demo::Canvas &c) noexcept
     c.rectangle(64, 252, 1792, 196, surface);
     c.text(96, 280, "CREATED BY", 2, text);
     c.text(96, 318, "PhantomPtr", 3, cyan);
-    c.text(276, 324, "phantomptr.com", 2, muted);
+    c.text(276, 324, "phantomptr.com      Also by PhantomPtr: PS5Upload", 2, muted);
     c.text(96, 370,
            "X  @phantomptr      Discord  discord.gg/fzK3xddtrM      Email  phantomptr@gmail.com", 2,
            text);
     c.text(96, 406,
-           "Source  github.com/phantomptr/ps5term      Support  ko-fi.com/B0B81S0WUA      "
-           "Also by PhantomPtr: PS5Upload",
+           "Website  ps5term.phantomptr.com      Source  github.com/phantomptr/ps5term      "
+           "Support  ko-fi.com/B0B81S0WUA",
            2, text);
 
     c.rectangle(64, 468, 1792, 300, surface);
@@ -2112,7 +2112,9 @@ void App::settings_action(ui::SettingsButton button) noexcept
                                                ? Connection::Environment::console
                                                : Connection::Environment::linux_guest))
         {
+            // Show the shell that just started (or the PS5 shell after stopping).
             reset_terminal();
+            close_settings();
         }
         break;
     case ui::SettingsButton::back:
