@@ -74,7 +74,8 @@ void App::welcome() noexcept
     model().set_default_colors({212, 224, 237}, {0, 0, 0});
     model().feed("\033[20h"); // LNM: LF also does CR
     model().feed("PS5Term\n");
-    model().feed(tr("Type help for commands. F6 or click Settings; controller: Options."));
+    model().feed(
+        i18n::plain(N_("Type help for commands. F6 or click Settings; controller: Options.")));
     model().feed("\n\n");
 }
 void App::submit() noexcept
@@ -2622,8 +2623,7 @@ void App::label_button(ps5::demo::Canvas &c, const ui::Rect &r, std::string_view
 {
     // A translation can be longer than the English the button was sized for: the highlight
     // grows with the text so focus never cuts a label off.
-    const int needed =
-        static_cast<int>(text_metrics::length(label) * text_metrics::advance(scale)) + 16;
+    const int needed = static_cast<int>(i18n::cells(label) * text_metrics::advance(scale)) + 16;
     if (hover(r) || focused(r))
         c.rectangle(to_unsigned(r.x), to_unsigned(r.y), to_unsigned(std::max(r.w, needed)),
                     to_unsigned(r.h), hover_bg);

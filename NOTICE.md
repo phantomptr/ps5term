@@ -195,3 +195,14 @@ apk packages are not bundled in the app. Alpine and its package authors retain
 their respective copyrights and licenses; package metadata, source links and
 license information are available at https://www.alpinelinux.org/ and
 https://pkgs.alpinelinux.org/. The installer script is PS5Term GPL-3.0-or-later.
+
+## Noto fonts for translated text
+
+The app's translations in Chinese (Simplified and Traditional), Japanese, Korean, Arabic,
+Persian, Hindi, Bengali and Thai are rendered ahead of time by `tools/generate-i18n.py` with
+Noto Sans SC, TC, JP and KR (Copyright 2014-2021 Adobe, with Reserved Font Name 'Source') and
+Noto Sans Arabic, Devanagari, Bengali and Thai (Copyright 2022 The Noto Project Authors), all
+under the SIL Open Font License 1.1. Vietnamese uses JetBrains Mono. The fonts are fetched by
+`tools/fetch-ui-fonts.py` from google/fonts at the commit and SHA-256 recorded in
+`third_party/noto/SOURCE.json` and are not distributed; the app ships only the rendered text in
+`assets/i18n/*.runs`. Each family's license is in `third_party/noto/`.

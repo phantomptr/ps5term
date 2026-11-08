@@ -37,6 +37,28 @@ const char *trc(const char *english) noexcept;
 // snprintf with a translated format, e.g. format(out, size, trc("Tab %u"), n). Every translation
 // keeps the English printf conversions (tools/generate-i18n.py checks), so the arguments fit.
 int format(char *out, std::size_t size, const char *translated_format, ...) noexcept;
+
+// Scripts the bundled font cannot draw (CJK, Arabic, Indic, Thai, Vietnamese) come as runs:
+// sentences rendered ahead of time (assets/i18n/<code>.runs, made by tools/generate-i18n.py).
+// In translated text a run is U+E000 followed by its number in four hex digits.
+struct Run
+{
+    unsigned width = 0, height = 0, baseline = 0; // pixels at the normal text size (10x20 cells)
+    const unsigned char *data = nullptr;          // level << 4 | (repeat - 1), row by row
+    std::size_t size = 0;
+};
+inline constexpr std::size_t run_marker_size = 7; // U+E000 (3 bytes) + 4 hex digits
+// U+E001 first in a right-to-left translation: drawn with its pieces in reverse order.
+inline constexpr std::size_t rtl_marker_size = 3;
+// The run starting at text[at], if there is one there.
+bool run_at(std::string_view text, std::size_t at, Run &run) noexcept;
+// Width in cells at the normal size: characters, with runs at their drawn width.
+std::size_t cells(std::string_view text) noexcept;
+// For text that does not go through the renderer (terminal output): English when the current
+// language is drawn from runs, otherwise the translation.
+std::string_view plain(std::string_view english) noexcept;
+// Where <code>.runs files are read from: /app0/assets/i18n on the console.
+void set_run_directory(const char *directory) noexcept;
 } // namespace term::i18n
 
 namespace term

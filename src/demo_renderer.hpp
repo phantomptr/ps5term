@@ -7,6 +7,7 @@
  */
 
 #pragma once
+#include "i18n.hpp"
 
 #include <cstdint>
 #include <span>
@@ -42,6 +43,10 @@ class Canvas final
     // has no glyph; the replacement character is drawn in that case.
     bool glyph(unsigned x, unsigned y, std::uint32_t code_point, Color color,
                unsigned style = 2) noexcept;
+
+    // A pre-rendered translation run; returns its drawn width in pixels.
+    unsigned draw_run(unsigned x, unsigned y, const term::i18n::Run &run, unsigned style,
+                      Color color) noexcept;
 
   public:
     explicit Canvas(std::uint32_t *pixels) noexcept : pixels_{pixels}

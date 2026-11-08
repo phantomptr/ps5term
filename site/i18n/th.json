@@ -12,7 +12,7 @@
   "chips.colour.title": "สีและ Unicode",
   "chips.input.text": "คีย์บอร์ด เมาส์ หรือคอนโทรลเลอร์: ทุกคำสั่งใช้ได้กับทุกอย่าง",
   "chips.input.title": "อุปกรณ์ใดก็ได้ ใช้อย่างเดียวก็พอ",
-  "chips.lang.text": "แอปใช้ภาษาตาม PS5 ของคุณใน 11 ภาษา ตั้งแต่อังกฤษถึงรัสเซีย ส่วนเว็บไซต์นี้มี 21 ภาษา",
+  "chips.lang.text": "แอปรองรับทั้ง 21 ภาษาของเว็บไซต์นี้และใช้ภาษาตาม PS5 ของคุณ ส่วน Linux ยังเป็น Linux ปกติ",
   "chips.lang.title": "ในภาษาของคุณ",
   "chips.native.text": "ls, cat, cp, grep, sha256sum, ps, sysinfo และอื่น ๆ บนไฟล์ของ PS5 เอง",
   "chips.native.title": "เชลล์เนทีฟ",

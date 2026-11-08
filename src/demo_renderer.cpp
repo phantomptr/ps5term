@@ -10,6 +10,7 @@
 #include "demo_renderer.hpp"
 #include "font_atlas.hpp"
 #include "text_metrics.hpp"
+#include "i18n.hpp"
 
 #include <algorithm>
 #include <array>
@@ -357,9 +358,98 @@ void Canvas::triangle(unsigned center_x, unsigned top, unsigned half_width, unsi
     fill_triangle(pixels_, center_x, top, half_width, height, color);
 }
 
+namespace
+{
+bool rtl_marker_at(std::string_view text, std::size_t at)
+{
+    return at + term::i18n::rtl_marker_size <= text.size() &&
+           static_cast<unsigned char>(text[at]) == 0xEE &&
+           static_cast<unsigned char>(text[at + 1]) == 0x80 &&
+           static_cast<unsigned char>(text[at + 2]) == 0x81;
+}
+// Pixel width of text as Canvas::text draws it.
+unsigned text_pixels(std::string_view text, unsigned scale)
+{
+    const unsigned advance = term::text_metrics::advance(scale);
+    unsigned total = 0;
+    for (std::size_t i = 0; i < text.size();)
+    {
+        if (term::i18n::Run run; term::i18n::run_at(text, i, run))
+        {
+            total += std::max(1U, (run.width * advance + 5) / 10);
+            i += term::i18n::run_marker_size;
+        }
+        else if (rtl_marker_at(text, i))
+            i += term::i18n::rtl_marker_size;
+        else
+        {
+            total += (static_cast<unsigned char>(text[i]) & 0xC0U) != 0x80U ? advance : 0;
+            ++i;
+        }
+    }
+    return total;
+}
+} // namespace
+
 void Canvas::text(unsigned x, unsigned y, std::string_view value, unsigned scale,
                   Color color) noexcept
 {
+    // A right-to-left translation is stored in reading order (so printf arguments line up):
+    // its pieces, rendered runs and plain text such as paths or numbers, are drawn in reverse.
+    if (rtl_marker_at(value, 0))
+    {
+        std::string_view pieces[64];
+        std::size_t count = 0, start = term::i18n::rtl_marker_size;
+        for (std::size_t i = start; i <= value.size() && count < std::size(pieces);)
+        {
+            term::i18n::Run run;
+            const bool at_run = i < value.size() && term::i18n::run_at(value, i, run);
+            const bool at_marker = i < value.size() && rtl_marker_at(value, i);
+            if (i == value.size() || at_run || at_marker)
+            {
+                if (i > start)
+                    pieces[count++] = value.substr(start, i - start);
+                if (at_run && count < std::size(pieces))
+                    pieces[count++] = value.substr(i, term::i18n::run_marker_size);
+                if (i == value.size())
+                    break;
+                i += at_run ? term::i18n::run_marker_size : term::i18n::rtl_marker_size;
+                start = i;
+                continue;
+            }
+            ++i;
+        }
+        for (std::size_t k = count; k-- > 0;)
+        {
+            const auto piece = pieces[k];
+            // Brackets alone between pieces face the other way in right-to-left reading.
+            char mirrored[8];
+            if (piece.size() < sizeof mirrored &&
+                piece.find_first_not_of(" ()[]{}<>") == std::string_view::npos)
+            {
+                for (std::size_t c = 0; c < piece.size(); ++c)
+                {
+                    const char ch = piece[piece.size() - 1 - c];
+                    mirrored[c] = ch == '('   ? ')'
+                                  : ch == ')' ? '('
+                                  : ch == '[' ? ']'
+                                  : ch == ']' ? '['
+                                  : ch == '{' ? '}'
+                                  : ch == '}' ? '{'
+                                  : ch == '<' ? '>'
+                                  : ch == '>' ? '<'
+                                              : ch;
+                }
+                text(x, y, std::string_view(mirrored, piece.size()), scale, color);
+            }
+            else
+                text(x, y, piece, scale, color);
+            x += text_pixels(piece, scale);
+            if (x >= frame_width)
+                return;
+        }
+        return;
+    }
     // ASCII runs use the native atlases; other UTF-8 characters (translations: accented Latin,
     // Cyrillic) come from the Unicode atlas, one cell each.
     const unsigned width = term::text_metrics::advance(scale);
@@ -374,6 +464,17 @@ void Canvas::text(unsigned x, unsigned y, std::string_view value, unsigned scale
             draw_text(pixels_, x, y, value.substr(i, run - i), scale, color);
             x += static_cast<unsigned>(run - i) * width;
             i = run;
+            continue;
+        }
+        if (term::i18n::Run run; term::i18n::run_at(value, i, run))
+        {
+            x += draw_run(x, y, run, scale, color);
+            i += term::i18n::run_marker_size;
+            continue;
+        }
+        if (rtl_marker_at(value, i)) // inside an argument: nothing to draw
+        {
+            i += term::i18n::rtl_marker_size;
             continue;
         }
         const auto lead = static_cast<unsigned char>(value[i]);
@@ -396,6 +497,57 @@ void Canvas::text(unsigned x, unsigned y, std::string_view value, unsigned scale
         x += width;
         i += length;
     }
+}
+
+// A pre-rendered translation (see i18n.hpp): unpack its 4-bit coverage, scale it from the
+// normal size to this text size (area average), and draw it with its baseline on the cell's.
+unsigned Canvas::draw_run(unsigned x, unsigned y, const term::i18n::Run &run, unsigned style,
+                          Color color) noexcept
+{
+    constexpr std::size_t source_limit = 2048 * 32, target_limit = 3072 * 48;
+    static std::uint8_t source[source_limit], target[target_limit];
+    const unsigned sw = run.width, sh = run.height;
+    if (!sw || !sh || static_cast<std::size_t>(sw) * sh > source_limit)
+        return 0;
+    std::size_t filled = 0;
+    for (std::size_t k = 0; k < run.size && filled < static_cast<std::size_t>(sw) * sh; ++k)
+    {
+        const std::uint8_t level = static_cast<std::uint8_t>((run.data[k] >> 4) * 17);
+        for (unsigned repeat = (run.data[k] & 15U) + 1; repeat && filled < source_limit; --repeat)
+            source[filled++] = level;
+    }
+    std::fill(source + filled, source + static_cast<std::size_t>(sw) * sh, std::uint8_t{0});
+    const unsigned advance = term::text_metrics::advance(style),
+                   cell_height = term::text_metrics::height(style);
+    const unsigned tw = std::max(1U, (sw * advance + 5) / 10),
+                   th = std::max(1U, (sh * cell_height + 10) / 20);
+    if (static_cast<std::size_t>(tw) * th > target_limit)
+        return tw;
+    if (tw == sw && th == sh)
+        std::copy(source, source + static_cast<std::size_t>(sw) * sh, target);
+    else
+        for (unsigned row = 0; row < th; ++row)
+            for (unsigned col = 0; col < tw; ++col)
+            {
+                const unsigned x0 = col * sw, x1 = (col + 1) * sw, y0 = row * sh,
+                               y1 = (row + 1) * sh;
+                unsigned sum = 0, area = 0;
+                for (unsigned sy = y0 / th; sy * th < y1 && sy < sh; ++sy)
+                    for (unsigned sx = x0 / tw; sx * tw < x1 && sx < sw; ++sx)
+                    {
+                        const unsigned ox = std::min(x1, (sx + 1) * tw) - std::max(x0, sx * tw),
+                                       oy = std::min(y1, (sy + 1) * th) - std::max(y0, sy * th);
+                        sum += source[sy * sw + sx] * ox * oy;
+                        area += ox * oy;
+                    }
+                target[row * tw + col] =
+                    static_cast<std::uint8_t>(area ? (sum + area / 2) / area : 0);
+            }
+    // The run's baseline sits 16/20 down the cell; rows above the cell start higher.
+    const unsigned above = ((run.baseline > 16 ? run.baseline - 16 : 0) * cell_height + 10) / 20;
+    if (y >= above && x < frame_width)
+        draw_coverage(pixels_, x, y - above, target, tw, th, static_cast<std::uint32_t>(color));
+    return tw;
 }
 
 bool Canvas::glyph(unsigned x, unsigned y, std::uint32_t code_point, Color color,

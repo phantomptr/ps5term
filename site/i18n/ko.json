@@ -12,7 +12,7 @@
   "chips.colour.title": "컬러와 Unicode",
   "chips.input.text": "키보드, 마우스, 컨트롤러: 어느 하나만으로 모든 동작을 할 수 있습니다.",
   "chips.input.title": "어떤 입력이든 하나로",
-  "chips.lang.text": "앱은 영어부터 러시아어까지 11개 언어로 PS5의 언어를 따릅니다. 이 사이트는 21개 언어입니다.",
+  "chips.lang.text": "앱은 이 사이트의 21개 언어를 모두 지원하며 PS5의 언어를 따릅니다. Linux는 일반 Linux 그대로입니다.",
   "chips.lang.title": "내 언어로",
   "chips.native.text": "ls, cat, cp, grep, sha256sum, ps, sysinfo 등으로 PS5 자체의 파일을 다룹니다.",
   "chips.native.title": "네이티브 셸",

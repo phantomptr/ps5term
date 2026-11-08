@@ -91,7 +91,7 @@ test-unit: $(HOST_UNIT_TEST)
 	@printf '%s\n' '==> [test-unit] Running host-native GoogleTest application tests'
 	@$(HOST_UNIT_TEST) $(GTEST_ARGS)
 
-$(HOST_UNIT_TEST): tests/test_demo_renderer.cpp src/demo_renderer.cpp src/demo_renderer.hpp src/font_atlas.hpp src/text_metrics.hpp tools/setup-test-dependencies.sh | test-deps
+$(HOST_UNIT_TEST): tests/test_demo_renderer.cpp src/demo_renderer.cpp src/demo_renderer.hpp src/i18n.cpp src/i18n.hpp src/i18n_strings.inc src/font_atlas.hpp src/text_metrics.hpp tools/setup-test-dependencies.sh | test-deps
 	@printf '%s\n' '==> [test-unit] Compiling the host-native GoogleTest binary'
 	@mkdir -p -- $(@D)
 	@gtest=$$(bash tools/setup-test-dependencies.sh); \
@@ -103,7 +103,7 @@ $(HOST_UNIT_TEST): tests/test_demo_renderer.cpp src/demo_renderer.cpp src/demo_r
 			-c "$$gtest/googletest/src/gtest_main.cc" -o $(@D)/gtest-main.o; \
 		$(HOST_CXX) $(HOST_TEST_CXXFLAGS) -pthread -Isrc \
 			-isystem "$$gtest/googletest/include" \
-			tests/test_demo_renderer.cpp src/demo_renderer.cpp \
+			tests/test_demo_renderer.cpp src/demo_renderer.cpp src/i18n.cpp \
 			$(@D)/gtest-all.o $(@D)/gtest-main.o \
 			$(HOST_TEST_LDFLAGS) -o $@
 

@@ -43,9 +43,11 @@
   sftp -P 2222 ps5term@<PS5-IP>             # The PS5's own files.
   ```
 
-- **In your language.** English, German, Spanish, French, Italian, Polish, Portuguese
-  (Brazil), Russian, Turkish, Hungarian and Indonesian. It follows the PS5's language;
-  choose another in Settings → Language. Program output stays as the program writes it.
+- **In your language.** All 21 languages of the website: English, Chinese (Simplified and
+  Traditional), Hindi, Spanish, Arabic, Bengali, Polish, Portuguese, Russian, Japanese, German,
+  French, Korean, Turkish, Vietnamese, Indonesian, Italian, Thai, Hungarian and Persian. It
+  follows the PS5's language; choose another in Settings → Language. Linux and its programs
+  stay as a normal Linux would be.
 - **Any input, alone.** A keyboard alone, a mouse alone, keyboard and mouse, or a
   controller alone: every action works with each, and on-screen hints name the keys
   of whatever you used last. See the [feature access matrix](docs/FEATURES.md).
@@ -57,8 +59,8 @@
 - Linux runs interpreted, so it suits shell work rather than heavy computation. Its
   outbound IPv4 network goes through the app, and nothing can connect in to it.
   Changes outside `/mnt/data` reset when Linux stops.
-- CJK characters show a replacement mark, so the app has no Chinese, Japanese, Korean,
-  Arabic, Thai, Hindi, Bengali or Vietnamese translation yet (the website has all of them).
+- In the terminal itself, CJK characters show a replacement mark (the app's own screens are
+  translated into every language above).
 - Firmware 13.60 on a phat console (CFI-1115A) is the only hardware tested so far.
   Reports from other firmware are welcome.
 
@@ -194,6 +196,10 @@ PS5Term), **library** (a dependency the build pulls in), **fetched on request**
   jq, less, tree and e2fsprogs
 * [JetBrains Mono](https://www.jetbrains.com/lp/mono/) (JetBrains): the terminal font,
   in [`third_party/jetbrains-mono`](third_party/jetbrains-mono)
+* [Noto Sans](https://github.com/notofonts) SC, TC, JP, KR, Arabic, Devanagari, Bengali and
+  Thai (Adobe, Google and the Noto Project Authors, SIL Open Font License): the app's
+  translated text in those scripts, rendered ahead of time into `assets/i18n` by
+  `tools/generate-i18n.py`; licenses in [`third_party/noto`](third_party/noto)
 * [font8x8](https://github.com/dhepper/font8x8) (Daniel Hepper): the public-domain
   bitmap font, in [`third_party/font8x8`](third_party/font8x8)
 * The icon, selection artwork and the music track "Night Drive" by BlackBearReloaded

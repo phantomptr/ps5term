@@ -12,7 +12,7 @@
   "chips.colour.title": "الألوان وUnicode",
   "chips.input.text": "لوحة المفاتيح أو الفأرة أو يد التحكم: كل إجراء يعمل مع كل منها.",
   "chips.input.title": "أي وسيلة إدخال، وحدها",
-  "chips.lang.text": "يتبع التطبيق لغة جهاز PS5 الخاص بك في 11 لغة، من الإنجليزية إلى الروسية؛ وهذا الموقع متاح بـ 21 لغة.",
+  "chips.lang.text": "يتحدث التطبيق كل لغات هذا الموقع الـ 21 ويتبع لغة جهاز PS5 الخاص بك. ويبقى Linux كما هو في أي Linux عادي.",
   "chips.lang.title": "بلغتك",
   "chips.native.text": "ls وcat وcp وgrep وsha256sum وps وsysinfo وغيرها، على ملفات PS5 نفسها.",
   "chips.native.title": "الصدفة الأصلية",

@@ -12,7 +12,7 @@
   "chips.colour.title": "রং ও Unicode",
   "chips.input.text": "কিবোর্ড, মাউস বা কন্ট্রোলার: প্রতিটি কাজ প্রত্যেকটি দিয়েই হয়।",
   "chips.input.title": "যেকোনো ইনপুট, একাই",
-  "chips.lang.text": "অ্যাপটি ইংরেজি থেকে রুশ পর্যন্ত 11টি ভাষায় আপনার PS5-এর ভাষা অনুসরণ করে; এই সাইটটি 21টি ভাষায়।",
+  "chips.lang.text": "অ্যাপটি এই সাইটের সব 21টি ভাষায় চলে এবং আপনার PS5-এর ভাষা অনুসরণ করে। Linux থাকে সাধারণ Linux-এর মতোই।",
   "chips.lang.title": "আপনার ভাষায়",
   "chips.native.text": "ls, cat, cp, grep, sha256sum, ps, sysinfo এবং আরও, PS5-এর নিজের ফাইলে।",
   "chips.native.title": "নেটিভ শেল",

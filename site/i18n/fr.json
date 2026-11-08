@@ -12,7 +12,7 @@
   "chips.colour.title": "Couleur et Unicode",
   "chips.input.text": "Clavier, souris ou manette : chaque action marche avec chacun.",
   "chips.input.title": "N'importe quelle entrée, seule",
-  "chips.lang.text": "L'app suit la langue de ta PS5 dans 11 langues, de l'anglais au russe ; ce site en compte 21.",
+  "chips.lang.text": "L'app parle les 21 langues de ce site et suit la langue de ta PS5. Linux reste un Linux normal.",
   "chips.lang.title": "Dans ta langue",
   "chips.native.text": "ls, cat, cp, grep, sha256sum, ps, sysinfo et plus, sur les fichiers de la PS5.",
   "chips.native.title": "Shell natif",
