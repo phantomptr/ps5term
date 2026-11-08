@@ -19,8 +19,9 @@ name the keys of the input used last: keyboard, mouse or controller.
 | Retry SSH server | F5 in Settings, or focus Retry SSH | Retry SSH button | Focus Retry SSH, Cross |
 | Start/stop Linux | Settings: focus Start/Stop Linux, Enter/Space | Start/Stop Linux button | Focus Start/Stop Linux, Cross |
 | Choose /mnt/ps5: /data or / | Settings: focus PS5 files, Enter/Space | PS5 files button | Focus PS5 files, Cross |
-| Expand persistent storage | Settings: focus Expand, Enter | Expand button | Focus Expand, Cross (Linux stopped) |
-| Open/install Alpine with apk | Settings: focus Open Alpine, Enter | Open Alpine button | Focus Open Alpine, Cross |
+| Linux environments (Alpine, Ubuntu): install, open, make default, remove | Settings: focus Linux environments, Enter; then Tab/arrows, Enter, Esc back | Linux environments button, then its buttons; right-click back | Focus Linux environments, Cross; D-pad, Cross, Circle back |
+| Grow persistent storage to 1, 2 or 4 GiB | Linux environments: focus Grow to, Enter (Linux stopped) | Grow to button | Focus Grow to, Cross (Linux stopped) |
+| Run a PS5 program in the tab ([PS5_PROGRAMS.md](PS5_PROGRAMS.md)) | `run PATH [ARGS]` in the built-in shell; Ctrl+C interrupts | Interrupt button | L2+Circle interrupts |
 | Text size | Settings: focus Text, Enter | Text size button | Focus Text, Cross |
 | Language (Auto follows the PS5) | Settings: focus Language, Enter | Language button | Focus Language, Cross |
 | Reconnect | F5 in the built-in shell, or once Linux has stopped | Reconnect button; click twice to restart a running Linux | Cross when offline |
@@ -37,7 +38,7 @@ name the keys of the input used last: keyboard, mouse or controller.
 | Find text in retained output | Ctrl+Shift+F; type query; Enter/Down next, Up previous, F5 refresh, Esc close | Right-click → Find text; Previous/Next/Refresh/Close buttons | L3 → Find text; Triangle types; L1/R1 cycle; Circle closes |
 | Scroll output | Page Up/Down in the built-in shell; Shift+Page Up/Down in Linux | Wheel; Shift+wheel for pages | D-pad |
 | Mouse in programs | - | Programs that ask get the mouse; hold Shift, or use Select text, to select | - |
-| Stop Linux, Expand storage (confirm) | Press again within 5 s | Click again | Cross again |
+| Stop Linux, Grow storage, Remove an environment (confirm) | Press again within 5 s | Click again | Cross again |
 | Close Settings | Esc or focus Back, Enter | Back or right-click | Circle |
 | About (credits, version, disclaimer) | F1 in Settings, or focus About PS5Term; Esc back | About PS5Term; Back or right-click | Focus About PS5Term, Cross; Circle back |
 
@@ -66,7 +67,7 @@ only; a host test is not proof of PS5 device behavior.
 
 Text size cycles small, normal, and large and is saved between launches. In controller
 text selection, Square resets the anchor, L1/R1 page, and Circle cancels. Clipboard
-contents stay inside PS5Term. See [persistent Alpine and packages](SUBSYSTEM.md#persistent-alpine-and-packages).
+contents stay inside PS5Term. See [Linux environments and packages](SUBSYSTEM.md#linux-environments-and-packages).
 
 Find text performs a case-sensitive literal search within retained physical rows,
 including UTF-8 pasted from the app clipboard. It does not join wrapped rows.
@@ -77,8 +78,9 @@ The selected match is highlighted. Search owns input and preserves the shell dra
 
 Up to four tabs have separate screens, scrollback, drafts and shell sessions.
 New tab uses the active tab's shell type: a native built-in shell, or an independent
-Linux PTY in the existing guest. Linux tabs start in the base guest; run
-`ps5term-alpine open` to enter the installed Alpine environment. The four guest-agent
+Linux PTY in the existing guest. Linux tabs start in the default environment (Base
+unless you choose another); Open on the Linux environments screen starts a new tab in
+Alpine or Ubuntu, and `exit` there ends that tab's shell. The four guest-agent
 PTY slots are shared with SSH; exhaustion is reported without closing another shell.
 Inactive tabs continue processing bounded output. Closing a tab releases only its
 shell. The primary tab cannot be closed and owns the shared Linux VM; Settings

@@ -41,7 +41,7 @@
   "features.kicker": "چه می‌کند",
   "features.lead": "همه‌چیز درون برنامه اجرا می‌شود. نه payload برای فرستادن، نه سرور SSH جداگانه، و برای استفاده به رایانه نیازی نیست.",
   "features.linux.t1": "‏RISC-V Linux 6.12 با BusyBox، curl با HTTPS، nano، tmux، htop، jq و less.",
-  "features.linux.t2": "فایل‌های <b>/mnt/data</b> بین اجراها می‌مانند؛ Alpine و بسته‌های <b>apk</b> آن را اضافه کنید.",
+  "features.linux.t2": "فایل‌های <b>/mnt/data</b> بین اجراها می‌مانند؛ Alpine یا Ubuntu 24.04 را با بسته‌های <b>apk</b> یا <b>apt</b> آن‌ها اضافه کنید.",
   "features.linux.t3": "فایل‌های خود PS5 در <b>/mnt/ps5</b> هستند. اینترنت از راه برنامه بیرون می‌رود؛ هیچ چیز نمی‌تواند به درون وصل شود.",
   "features.linux.title": "یک پوستهٔ Linux واقعی",
   "features.title": "کنسول شما، با خط فرمان",

@@ -30,6 +30,31 @@ class BuiltinShell
     bool busy() const noexcept;
     // Largest text a filter, a pipe stage or one command's terminal output can hold.
     static constexpr std::size_t text_limit = 512 * 1024;
+    // `run PATH [ARGS]` starts a PS5 program in the owner's tab (Connection, with
+    // platform::ProgramRunner). Off by default: SSH sessions have no tab to give it.
+    void enable_programs(bool enabled) noexcept
+    {
+        programs_enabled_ = enabled;
+    }
+    // A run waiting for its tab: NUL-separated arguments (the first an absolute path).
+    bool program_requested() const noexcept
+    {
+        return state_ == State::program && !program_taken_;
+    }
+    std::string_view program_arguments() const noexcept
+    {
+        return {program_args_.data(), program_args_size_};
+    }
+    std::string_view directory() const noexcept
+    {
+        return cwd_.data();
+    }
+    void program_taken() noexcept
+    {
+        program_taken_ = true;
+    }
+    // The program ended (or never started): print why and return to the prompt.
+    void program_finished(std::string_view message, int status) noexcept;
 
   private:
     enum class State
@@ -42,7 +67,8 @@ class BuiltinShell
         hashing,
         sleeping,
         measuring,
-        expanding
+        expanding,
+        program
     };
     // Allocated when first needed and released when the command line ends.
     enum Slot
@@ -110,6 +136,9 @@ class BuiltinShell
     };
     std::array<EnvEntry, max_env_> env_{};
     int env_count_ = 0;
+    bool programs_enabled_ = false, program_taken_ = false;
+    std::array<char, 6144> program_args_{};
+    std::size_t program_args_size_ = 0;
     // Variable expansion
     std::array<char, 513> item_{};
     std::array<char, 1024> expanded_{};

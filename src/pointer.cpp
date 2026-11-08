@@ -300,14 +300,12 @@ SettingsButton settings_button_at(int px, int py) noexcept
 {
     if (linux_switch.contains(px, py))
         return SettingsButton::toggle_linux;
-    if (alpine_button.contains(px, py))
-        return SettingsButton::open_alpine;
+    if (environments_button.contains(px, py))
+        return SettingsButton::environments;
     if (language_button.contains(px, py))
         return SettingsButton::language;
     if (text_size_button.contains(px, py))
         return SettingsButton::text_size;
-    if (storage_expand.contains(px, py))
-        return SettingsButton::expand_storage;
     if (host_mount_switch.contains(px, py))
         return SettingsButton::toggle_host_mount;
     if (ssh_switch.contains(px, py) || help_toggle.contains(px, py))
@@ -327,6 +325,51 @@ SettingsButton settings_button_at(int px, int py) noexcept
     if (speed_up_rect.contains(px, py))
         return SettingsButton::speed_up;
     return SettingsButton::none;
+}
+
+Rect env_button_rect(EnvButton button) noexcept
+{
+    switch (button)
+    {
+    case EnvButton::default_base:
+        return env_default(0);
+    case EnvButton::open_alpine:
+        return env_open(1);
+    case EnvButton::default_alpine:
+        return env_default(1);
+    case EnvButton::remove_alpine:
+        return env_remove(1);
+    case EnvButton::open_ubuntu:
+        return env_open(2);
+    case EnvButton::default_ubuntu:
+        return env_default(2);
+    case EnvButton::remove_ubuntu:
+        return env_remove(2);
+    case EnvButton::grow_1:
+        return env_grow(0);
+    case EnvButton::grow_2:
+        return env_grow(1);
+    case EnvButton::grow_4:
+        return env_grow(2);
+    case EnvButton::toggle_linux:
+        return env_linux_switch;
+    case EnvButton::back:
+        return help_back;
+    case EnvButton::none:
+        break;
+    }
+    return {};
+}
+EnvButton env_button_at(int px, int py) noexcept
+{
+    for (unsigned i = static_cast<unsigned>(EnvButton::default_base);
+         i <= static_cast<unsigned>(EnvButton::back); ++i)
+    {
+        const auto button = static_cast<EnvButton>(i);
+        if (env_button_rect(button).contains(px, py))
+            return button;
+    }
+    return EnvButton::none;
 }
 
 MainButton main_button_at(int px, int py, bool keyboard) noexcept

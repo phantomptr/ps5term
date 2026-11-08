@@ -1230,19 +1230,23 @@ static int on_csi(const char *leader, const long args[], int argcount, const cha
     break;
 
   case 0x62: { // REP - ECMA-48 8.3.103
+    // PS5Term local patch: arm the pending wrap exactly as printed text does, only after the
+    // last column is written. 0.3.3 armed it one column early, so a repeat ending just before
+    // the margin (ncurses' box borders) made the next character wrap and scroll the screen.
     const int row_width = THISROWWIDTH(state);
     count = CSI_ARG_COUNT(args[0]);
     col = state->pos.col + count;
     UBOUND(col, row_width);
     while (state->pos.col < col) {
       putglyph(state, state->combine_chars, state->combine_width, state->pos);
-      state->pos.col += state->combine_width;
-    }
-    if (state->pos.col + state->combine_width >= row_width) {
-      if (state->mode.autowrap) {
-        state->at_phantom = 1;
-        cancel_phantom = 0;
+      if (state->pos.col + state->combine_width >= row_width) {
+        if (state->mode.autowrap) {
+          state->at_phantom = 1;
+          cancel_phantom = 0;
+        }
+        break;
       }
+      state->pos.col += state->combine_width;
     }
     break;
   }

@@ -32,9 +32,14 @@
 - **A real Linux shell**, inside the app: a RISC-V Linux 6.12 guest with BusyBox,
   `curl` with HTTPS, `nano`, `tmux`, `htop`, `jq` and `less`. Choose Start Linux
   in Settings, or just connect over SSH. Files in `/mnt/data` persist (16 MiB at first;
-  expand to 512 MiB in Settings), `/mnt/ps5` shows the PS5's `/data` (or everything the
-  app can see, if you choose that in Settings), and the optional Alpine environment and
-  its `apk` packages persist inside `/mnt/data/alpine`.
+  grow it to 1, 2 or 4 GiB), and `/mnt/ps5` shows the PS5's `/data` (or everything the
+  app can see, if you choose that in Settings).
+- **PS5 programs in a tab**: `run /data/homebrew/bin/tool` starts a PS5 ELF program (ncurses
+  menus included) in the built-in shell's tab, through your ELF loader on port 9021. See
+  [docs/PS5_PROGRAMS.md](docs/PS5_PROGRAMS.md).
+- **Linux environments**: Settings → Linux environments installs and opens Alpine 3.23
+  (`apk`) or Ubuntu 24.04 LTS (`apt`), each in its own tab, with its packages kept on the
+  Linux disk. Make one the default for new Linux tabs, or remove it.
 - **SSH and SFTP** on port 2222, with the password shown in Settings or your own key:
 
   ```sh
@@ -225,6 +230,8 @@ PS5Term), **library** (a dependency the build pulls in), **fetched on request**
 
 **Fetched on request:**
 * [Alpine Linux](https://www.alpinelinux.org/) minirootfs and the `apk` packages you
+  install
+* [Ubuntu Base](https://cdimage.ubuntu.com/ubuntu-base/) 24.04 and the `apt` packages you
   install
 * Optional packaging tools: [UFS2Tool](https://github.com/SvenGDK/UFS2Tool) (SvenGDK),
   [MkPFS](https://github.com/PSBrew/MkPFS) (PSBrew) and

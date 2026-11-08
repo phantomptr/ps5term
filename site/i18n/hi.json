@@ -41,7 +41,7 @@
   "features.kicker": "यह क्या करता है",
   "features.lead": "सब कुछ ऐप के अंदर चलता है। न कोई payload भेजना, न अलग SSH सर्वर, और इस्तेमाल के लिए कंप्यूटर की ज़रूरत नहीं।",
   "features.linux.t1": "RISC-V Linux 6.12, साथ में BusyBox, HTTPS वाला curl, nano, tmux, htop, jq और less।",
-  "features.linux.t2": "<b>/mnt/data</b> की फ़ाइलें हर बार चालू करने पर बनी रहती हैं; Alpine और उसके <b>apk</b> पैकेज जोड़ें।",
+  "features.linux.t2": "<b>/mnt/data</b> की फ़ाइलें हर बार चालू करने पर बनी रहती हैं; Alpine या Ubuntu 24.04 और उनके <b>apk</b> या <b>apt</b> पैकेज जोड़ें।",
   "features.linux.t3": "PS5 की अपनी फ़ाइलें <b>/mnt/ps5</b> पर हैं। इंटरनेट ऐप के ज़रिए बाहर जाता है; अंदर कुछ भी कनेक्ट नहीं हो सकता।",
   "features.linux.title": "असली Linux शेल",
   "features.title": "आपका कंसोल, कमांड लाइन के साथ",

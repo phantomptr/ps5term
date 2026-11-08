@@ -41,7 +41,7 @@
   "features.kicker": "功能",
   "features.lead": "一切都在应用内运行。无需发送 payload，无需单独的 SSH 服务器，也不需要电脑。",
   "features.linux.t1": "RISC-V Linux 6.12，带 BusyBox、支持 HTTPS 的 curl、nano、tmux、htop、jq 和 less。",
-  "features.linux.t2": "<b>/mnt/data</b> 中的文件在每次启动之间都会保留；还可以添加 Alpine 及其 <b>apk</b> 软件包。",
+  "features.linux.t2": "<b>/mnt/data</b> 中的文件在每次启动之间都会保留；还可以添加 Alpine 或 Ubuntu 24.04 及其 <b>apk</b> 或 <b>apt</b> 软件包。",
   "features.linux.t3": "PS5 自己的文件位于 <b>/mnt/ps5</b>。网络通过应用向外连接；外部无法连入。",
   "features.linux.title": "真正的 Linux shell",
   "features.title": "你的主机，加上命令行",

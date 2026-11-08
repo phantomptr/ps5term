@@ -41,7 +41,7 @@
   "features.kicker": "Что он умеет",
   "features.lead": "Всё работает внутри приложения. Не нужно отправлять payload, не нужен отдельный SSH-сервер и не нужен компьютер.",
   "features.linux.t1": "RISC-V Linux 6.12 с BusyBox, curl с HTTPS, nano, tmux, htop, jq и less.",
-  "features.linux.t2": "Файлы в <b>/mnt/data</b> сохраняются между запусками; добавьте Alpine и его пакеты <b>apk</b>.",
+  "features.linux.t2": "Файлы в <b>/mnt/data</b> сохраняются между запусками; добавьте Alpine или Ubuntu 24.04 с их пакетами <b>apk</b> или <b>apt</b>.",
   "features.linux.t3": "Собственные файлы PS5 находятся в <b>/mnt/ps5</b>. Интернет идёт через приложение; подключиться извне нельзя.",
   "features.linux.title": "Настоящая оболочка Linux",
   "features.title": "Ваша консоль с командной строкой",

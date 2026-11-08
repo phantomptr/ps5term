@@ -424,6 +424,8 @@ cp "$param" "$app/sce_sys/param.json"
 for asset in icon0.png pic0.dds pic1.dds snd0.at9; do
     [[ -f $root/sce_sys/$asset ]] && cp "$root/sce_sys/$asset" "$app/sce_sys/$asset"
 done
+# `run` sends this payload to the ELF loader; it is built from source, never committed.
+bash "$root/tools/build-run-payload.sh"
 mkdir -p "$app/assets"
 cp "$build/generated/build-info.json" "$app/assets/build-info.json"
 python3 "$root/tools/app_distribution.py" --root "$root" --app "$app"

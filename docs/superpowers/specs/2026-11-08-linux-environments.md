@@ -1,6 +1,10 @@
 # Linux environments: one place to run and manage Linux
 
-Status: proposal (2026-11-08). Ubuntu feasibility is being prototyped on the phat first.
+Status: implemented and verified on the phat (13.60), 2026-11-08. Ubuntu 24.04 prototype:
+download 68 s, unpack 65 s, base 70 MB, `apt update` 3-6 min and about 260 MB of lists, memory
+under 40 MB. As built: Open/Install runs `ps5term-env open <name>` in a new tab (progress shows
+there); the list is read quickly first and sizes (`du -x`) afterwards; growing copies the disk
+once to the backup and then extends it in place (512 MiB to 1 GiB in under 90 s).
 
 ## Why
 
@@ -76,8 +80,10 @@ their own licenses apply.
   guest agent (EXEC channel, as SSH commands use), so the screen shows real state; installs run
   in the background through the agent and stream progress. Opening an environment sends
   `ps5term-env enter <name>` to the tab's shell, as Open Alpine does now.
-- **Default**: stored in `/mnt/data/.ps5term-env-default`; the guest's login profile enters it, and
-  `linux@` SSH sessions do the same.
+- **Default**: stored in `/mnt/data/.ps5term-env-default`; the guest's login profile enters it for
+  interactive shells (local tabs and `linux@` SSH logins). Commands sent over SSH
+  (`ssh linux@ps5 'cmd'`) run in Base, as scripts expect; `ssh linux@ps5 'ps5term-env run ubuntu
+  apt update'` targets an environment explicitly.
 - **Disk**: raise the data-disk limit from 1 GiB to 4 GiB (bounded by the PS5's free space) and
   make the expansion size a choice.
 - **Memory**: the guest has 128 MiB. If the Ubuntu prototype shows `apt` struggling, add a

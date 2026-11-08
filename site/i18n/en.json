@@ -41,7 +41,7 @@
   "features.kicker": "What it does",
   "features.lead": "Everything runs inside the app. No payload to send, no separate SSH server and no computer needed to use it.",
   "features.linux.t1": "RISC-V Linux 6.12 with BusyBox, curl with HTTPS, nano, tmux, htop, jq and less.",
-  "features.linux.t2": "Files in <b>/mnt/data</b> stay between starts; add Alpine and its <b>apk</b> packages.",
+  "features.linux.t2": "Files in <b>/mnt/data</b> stay between starts; add Alpine or Ubuntu 24.04 with their <b>apk</b> or <b>apt</b> packages.",
   "features.linux.t3": "The PS5's own files are at <b>/mnt/ps5</b>. Internet goes out through the app; nothing can connect in.",
   "features.linux.title": "A real Linux shell",
   "features.title": "Your console, with a command line",

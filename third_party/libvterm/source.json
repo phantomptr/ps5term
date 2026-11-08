@@ -17,10 +17,16 @@
     "src/pen.c": "f97dde69a6e7e7f9c3a6fdb7575e965ef9a17077bf196609759f9f181982ca2b",
     "src/rect.h": "8ac51df5e5c7e092b5c3feedc930a5238327f204da50febd3ae635788ba1de06",
     "src/screen.c": "d37cc2977595c9766dd85d20ce86e3a7838271a7df9c28f9ff1ac4a8ff1bb59a",
-    "src/state.c": "8f6504f091a91194fa4e972a142d586fb96bd8e7a15b6d26747323f1fe48ff38",
+    "src/state.c": "61b1dece14e841dd3317a9dfc8c1c4bb4e4a44b3a02070bd599266fab7432140",
     "src/unicode.c": "a3905a313d8825aa95b4e26a8cb72a06c5c88a80c665cdf093ebaa8b874d7026",
     "src/utf8.h": "2a1c6ffd176d2750e077debbd8bc43f9d7b8bd451eb37b7bbe7e7b60ed29a974",
     "src/vterm.c": "f8620e99da940d9c49c8d58dccd161aeaad45c5c6c3950f5289e6e4f77be85ac",
     "src/vterm_internal.h": "d283425a4bc343d351f858dfd32840320f25701fbbca06eb44d0d2040bf6e7e9"
-  }
+  },
+  "local_patches": [
+    {
+      "file": "src/state.c",
+      "what": "REP (CSI b) arms the pending wrap only after writing the last column, as text does; upstream 0.3.3 armed it one column early, breaking ncurses box borders (bottom-right corner wrapped and scrolled)."
+    }
+  ]
 }

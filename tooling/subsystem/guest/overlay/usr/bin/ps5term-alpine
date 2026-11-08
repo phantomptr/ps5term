@@ -1,0 +1,11 @@
+#!/bin/sh
+# PS5Term GPL-3.0-or-later. The Alpine environment's original command; see ps5term-env.
+set -eu
+case "${1:-status}" in
+ status) exec ps5term-env list ;;
+ open) exec ps5term-env open alpine ;;
+ install) shift; exec ps5term-env install alpine "$@" ;;
+ enter) exec ps5term-env enter alpine ;;
+ run) shift; exec ps5term-env run alpine "$@" ;;
+ *) echo 'usage: ps5term-alpine [status|open|install|enter|run <command> [arguments]]' >&2; exit 1 ;;
+esac

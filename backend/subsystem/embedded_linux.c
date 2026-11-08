@@ -304,7 +304,7 @@ int ps5_linux_start(Ps5Linux *vm,const Ps5LinuxImages *images)
        !images->bios_size || images->bios_size>1024*1024 || !images->kernel_size || images->kernel_size>32*1024*1024 ||
        images->disk_size<512 || images->disk_size>32*1024*1024 || images->disk_size%512 ||
        (images->data_disk.sectors && (!images->data_disk.read || !images->data_disk.write ||
-                                    images->data_disk.sectors>1024u*1024u*1024u/512u))) {
+                                    images->data_disk.sectors>4ull*1024u*1024u*1024u/512u))) {
         vm->error=PS5_LINUX_ARGUMENT;return 0;
     }
     if(images->shared_folder.context && (!images->shared_folder.stat || !images->shared_folder.fstat ||

@@ -41,7 +41,7 @@
   "features.kicker": "Nó làm được gì",
   "features.lead": "Mọi thứ chạy bên trong ứng dụng. Không cần gửi payload, không cần máy chủ SSH riêng và không cần máy tính để dùng.",
   "features.linux.t1": "RISC-V Linux 6.12 với BusyBox, curl có HTTPS, nano, tmux, htop, jq và less.",
-  "features.linux.t2": "Tệp trong <b>/mnt/data</b> được giữ lại giữa các lần khởi động; có thể thêm Alpine và các gói <b>apk</b> của nó.",
+  "features.linux.t2": "Tệp trong <b>/mnt/data</b> được giữ lại giữa các lần khởi động; có thể thêm Alpine hoặc Ubuntu 24.04 cùng các gói <b>apk</b> hoặc <b>apt</b> của chúng.",
   "features.linux.t3": "Các tệp của chính PS5 nằm ở <b>/mnt/ps5</b>. Internet đi ra ngoài qua ứng dụng; không gì có thể kết nối vào.",
   "features.linux.title": "Một shell Linux thật",
   "features.title": "Máy của bạn, có thêm dòng lệnh",

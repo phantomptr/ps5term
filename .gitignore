@@ -10,6 +10,8 @@ __pycache__/
 build/
 dist/
 **/bin/
+# The Linux guest's own programs are source, not build output.
+!tooling/subsystem/guest/overlay/usr/bin/
 **/obj/
 .vs/
 .idea/

@@ -74,7 +74,12 @@ struct TerminalModel::Impl
             result.codepoints = {};
         else
             result.width = static_cast<unsigned char>(source.width);
-        result.default_background = VTERM_COLOR_IS_DEFAULT_BG(&source.bg);
+        // Black as a background is the panel's own colour: full-screen programs (ncurses
+        // asks for white on black) would otherwise paint the screen palette black's grey,
+        // which exists only to keep black text readable.
+        result.default_background = VTERM_COLOR_IS_DEFAULT_BG(&source.bg) ||
+                                    (VTERM_COLOR_IS_INDEXED(&source.bg) &&
+                                     source.bg.indexed.idx == 0 && !source.attrs.reverse);
         vterm_screen_convert_color_to_rgb(screen, &source.fg);
         vterm_screen_convert_color_to_rgb(screen, &source.bg);
         result.foreground = {source.fg.rgb.red, source.fg.rgb.green, source.fg.rgb.blue};

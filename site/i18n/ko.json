@@ -41,7 +41,7 @@
   "features.kicker": "하는 일",
   "features.lead": "모든 것이 앱 안에서 실행됩니다. 보낼 페이로드도, 별도의 SSH 서버도, 컴퓨터도 필요 없습니다.",
   "features.linux.t1": "RISC-V Linux 6.12와 BusyBox, HTTPS를 지원하는 curl, nano, tmux, htop, jq, less.",
-  "features.linux.t2": "<b>/mnt/data</b>의 파일은 다시 시작해도 남아 있습니다. Alpine과 그 <b>apk</b> 패키지도 추가할 수 있습니다.",
+  "features.linux.t2": "<b>/mnt/data</b>의 파일은 다시 시작해도 남아 있습니다. Alpine 또는 Ubuntu 24.04와 그 <b>apk</b> 또는 <b>apt</b> 패키지도 추가할 수 있습니다.",
   "features.linux.t3": "PS5 자체의 파일은 <b>/mnt/ps5</b>에 있습니다. 인터넷은 앱을 통해 밖으로만 나가고, 외부에서는 접속할 수 없습니다.",
   "features.linux.title": "진짜 Linux 셸",
   "features.title": "내 콘솔에 명령줄을",

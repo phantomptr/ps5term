@@ -4,6 +4,8 @@
 #include "guest_agent.hpp"
 #if defined(PS5TERM_LINUX_PERSISTENCE)
 #include "linux_data_disk.hpp"
+#include <cstdio>
+#include <sys/stat.h>
 #endif
 #if defined(PS5TERM_LINUX_SHARED_FOLDER)
 #include "linux_shared_folder.hpp"
@@ -125,6 +127,20 @@ class LinuxSubsystem
 #else
         return 0;
 #endif
+    }
+    unsigned storage_mib() const noexcept
+    {
+#if defined(PS5TERM_LINUX_PERSISTENCE)
+        char path[1100];
+        struct stat st
+        {
+        };
+        if (std::snprintf(path, sizeof path, "%s/data.ext2", data_directory_) <
+                static_cast<int>(sizeof path) &&
+            ::stat(path, &st) == 0 && S_ISREG(st.st_mode) && st.st_size > 0)
+            return static_cast<unsigned>(static_cast<std::uint64_t>(st.st_size) >> 20);
+#endif
+        return 0;
     }
     // Independent guest PTYs for SSH sessions. Call pump regularly while running.
     GuestAgent &agent() noexcept

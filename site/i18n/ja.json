@@ -41,7 +41,7 @@
   "features.kicker": "できること",
   "features.lead": "すべてアプリの中で動きます。ペイロードの送信も、別の SSH サーバーも、パソコンも必要ありません。",
   "features.linux.t1": "RISC-V Linux 6.12。BusyBox、HTTPS 対応の curl、nano、tmux、htop、jq、less 入り。",
-  "features.linux.t2": "<b>/mnt/data</b> のファイルは起動をまたいで残ります。Alpine とその <b>apk</b> パッケージも追加できます。",
+  "features.linux.t2": "<b>/mnt/data</b> のファイルは起動をまたいで残ります。Alpine または Ubuntu 24.04 と、その <b>apk</b> または <b>apt</b> パッケージも追加できます。",
   "features.linux.t3": "PS5 自身のファイルは <b>/mnt/ps5</b> にあります。インターネットはアプリを通って外へ出るだけで、外からは接続できません。",
   "features.linux.title": "本物の Linux シェル",
   "features.title": "あなたの本体に、コマンドラインを",

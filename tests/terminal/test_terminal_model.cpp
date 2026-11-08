@@ -14,6 +14,27 @@ static std::string output(TerminalModel &model)
 }
 int main()
 {
+    // REP ending one column before the margin must not arm the pending wrap: ncurses draws
+    // a box's bottom border as m, q, REP, then the corner with autowrap off (local libvterm
+    // patch; upstream 0.3.3 wrapped the corner and scrolled the whole screen).
+    {
+        term::TerminalModel box(4, 10);
+        box.feed("\033(0\033[1;1Hlq\033[7bk\033[4;1Hmq\033[7b\033[?7lj\033[?7h");
+        assert(box.cell(0, 0).codepoints[0] == 0x250c && box.cell(0, 9).codepoints[0] == 0x2510);
+        assert(box.cell(3, 0).codepoints[0] == 0x2514 && box.cell(3, 8).codepoints[0] == 0x2500);
+        assert(box.cell(3, 9).codepoints[0] == 0x2518);
+        // A repeat that does reach the margin still wraps the next character, as text does.
+        term::TerminalModel wrap(2, 10);
+        wrap.feed("ab\033[8bc");
+        assert(wrap.cell(0, 9).codepoints[0] == 'b' && wrap.cell(1, 0).codepoints[0] == 'c');
+    }
+    // Black as a background is the panel's colour; black text keeps its readable grey.
+    {
+        term::TerminalModel colours(1, 10);
+        colours.feed("\033[37;40mA\033[41mB\033[30;49mC");
+        assert(colours.cell(0, 0).default_background && !colours.cell(0, 1).default_background);
+        assert(colours.cell(0, 2).foreground.red == 72 && colours.cell(0, 2).default_background);
+    }
     // Allocation refusal must leave an inert model rather than enter upstream
     // libvterm with a null pointer. Resize/feed faults retain queued input.
     // Sweep several construction cutoffs to cover partially built graphs.

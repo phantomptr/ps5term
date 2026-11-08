@@ -187,14 +187,26 @@ distribution. See docs/SUBSYSTEM.md. Native mapping API declarations follow the
 OpenOrbis public libkernel header (OpenOrbis/OpenOrbis-PS4-Toolchain); no SDK
 implementation or proprietary source is copied.
 
-### Optional Alpine userland
+### Optional Alpine and Ubuntu userlands
 
-`ps5term-alpine` downloads the official Alpine Linux 3.23.8 RISC-V minirootfs on
-request and verifies its pinned SHA-256. That archive and subsequently installed
-apk packages are not bundled in the app. Alpine and its package authors retain
-their respective copyrights and licenses; package metadata, source links and
-license information are available at https://www.alpinelinux.org/ and
-https://pkgs.alpinelinux.org/. The installer script is PS5Term GPL-3.0-or-later.
+`ps5term-env` downloads, on request, the official Alpine Linux 3.23.8 RISC-V minirootfs or
+Ubuntu Base 24.04.5 riscv64, and verifies each archive's pinned SHA-256. Those archives and
+the apk or apt packages installed later are not bundled in the app. Alpine, Ubuntu
+(Canonical) and the package authors retain their copyrights and licenses; package metadata,
+source and license information are at https://www.alpinelinux.org/,
+https://pkgs.alpinelinux.org/, https://ubuntu.com/legal and https://packages.ubuntu.com/.
+"Ubuntu" is a trademark of Canonical Ltd., named here only to identify the download. The
+installer script is PS5Term GPL-3.0-or-later.
+
+## PS5 programs (`run`)
+
+`ps5term-run` (tooling/run-payload) starts programs with shsrv's `elfldr.c` and `pt.c` by John
+Törnblom (GPL-3.0-or-later, third_party/shsrv). PS5Term ships the compiled `xterm-256color`
+terminfo entry from ncurses 6.4 (Copyright Thomas E. Dickey and the Free Software Foundation,
+X11/MIT-style license, see assets/linux/licenses) so ncurses programs find their terminal.
+`tooling/run-payload/ps5term_tty.c` is offered under a permissive license so programs can
+include it. The vendored libvterm 0.3.3 carries one local fix (REP and the pending wrap),
+recorded in third_party/libvterm/source.json.
 
 ## Noto fonts for translated text
 

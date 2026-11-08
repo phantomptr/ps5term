@@ -222,7 +222,7 @@ struct AppTest
         app.key(Key::escape);
         app.model_.feed("\033[?1006l\033[?1000l");
         // Attributes reach the cells the renderer needs.
-        app.model_.feed("\033[H\033[2J\033[40mA\033[0mB\033[4mC\033[0m");
+        app.model_.feed("\033[H\033[2J\033[44mA\033[0mB\033[4mC\033[0m");
         assert(!app.model_.cell(0, 0).default_background &&
                app.model_.cell(0, 1).default_background);
         assert(app.model_.cell(0, 2).underline);

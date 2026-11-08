@@ -1,0 +1,221 @@
+#!/bin/sh
+# PS5Term GPL-3.0-or-later. Linux environments (Alpine, Ubuntu) on the persistent data disk.
+#
+# Each environment is an official riscv64 root filesystem, pinned by URL and SHA-256, unpacked
+# into /mnt/data/<name> and entered with chroot. The kernel stays PS5Term's. Commands:
+#   ps5term-env list [--json] [--sizes] every environment and its state (sizes: slower)
+#   ps5term-env install <name> [file]  download (or use file), verify, unpack
+#   ps5term-env open <name>            install if needed, then enter
+#   ps5term-env enter <name>           a login shell inside it
+#   ps5term-env run <name> <command>   one command inside it
+#   ps5term-env remove <name>          delete its folder (never anything else)
+#   ps5term-env default [<name>|base]  where new Linux shells start (base: the built-in shell)
+# Progress is plain text for the person watching, like any installer.
+set -eu
+DATA=/mnt/data
+DEFAULT_FILE=$DATA/.ps5term-env-default
+NAMES='alpine ubuntu'
+
+fail() { echo "ps5term-env: $*" >&2; exit 1; }
+mounted() { grep -q " $1 " /proc/mounts; }
+
+# Manifests. need: free KiB required to install. marker: file proving a complete install.
+manifest() {
+ case "$1" in
+  alpine)
+   TITLE='Alpine 3.23'; VERSION=3.23.8; MANAGER=apk
+   URL=https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/riscv64/alpine-minirootfs-3.23.8-riscv64.tar.gz
+   SHA256=8d811b1aff11a6e40433c219142e06496a4f92dd06d86eefca58f62602ce3f24
+   MAX_DOWNLOAD=8388608; NEED=65536; MARKER=etc/alpine-release; LOGIN='/bin/sh -l'
+   ;;
+  ubuntu)
+   TITLE='Ubuntu 24.04 LTS'; VERSION=24.04.5; MANAGER=apt
+   URL=https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04.5-base-riscv64.tar.gz
+   SHA256=651c516f291259ec913caa1efd0cfff738cd223adfc6617c884f07af487f08cf
+   MAX_DOWNLOAD=67108864; NEED=393216; MARKER=etc/lsb-release; LOGIN='/bin/bash -l'
+   ;;
+  *) fail "unknown environment '$1' (known: $NAMES)" ;;
+ esac
+ ROOT=$DATA/$1
+}
+
+# What a fresh install needs beyond the archive: DNS, CA trust, package sources, apt settings.
+prepare() {
+ name=$1; root=$2
+ mkdir -p "$root/proc" "$root/sys" "$root/dev" "$root/mnt/ps5" "$root/tmp" "$root/root"
+ chmod 1777 "$root/tmp"
+ cp /etc/resolv.conf "$root/etc/resolv.conf"
+ case "$name" in
+  alpine)
+   mkdir -p "$root/etc/ssl/certs"
+   cp /etc/ssl/certs/ca-certificates.crt "$root/etc/ssl/certs/ca-certificates.crt"
+   printf '%s\n' 'https://dl-cdn.alpinelinux.org/alpine/v3.23/main' \
+     'https://dl-cdn.alpinelinux.org/alpine/v3.23/community' >"$root/etc/apk/repositories"
+   ;;
+  ubuntu)
+   # apt drops to the _apt user for downloads; inside this chroot root is simpler and works.
+   # Translated package descriptions would add tens of MiB of lists that apt reads on every run.
+   printf '%s\n' 'APT::Sandbox::User "root";' 'Acquire::Languages "none";' \
+    >"$root/etc/apt/apt.conf.d/99ps5term"
+   ;;
+ esac
+}
+
+state() { # installed | absent
+ manifest "$1"
+ [ -f "$ROOT/$MARKER" ] && echo installed || echo absent
+}
+
+current_default() {
+ [ -r "$DEFAULT_FILE" ] && cat "$DEFAULT_FILE" 2>/dev/null || echo base
+}
+
+bind_mounts() { # set up proc/sys/dev(/pts) and /mnt/ps5 inside $1, once
+ root=$1
+ mkdir /run/ps5term-env-mount 2>/dev/null || fail 'mount setup busy; retry shortly'
+ trap 'rmdir /run/ps5term-env-mount' EXIT
+ trap 'exit 130' HUP INT TERM
+ for path in proc sys dev; do
+  mounted "$root/$path" || mount --bind "/$path" "$root/$path"
+ done
+ mkdir -p "$root/dev/pts"
+ mounted "$root/dev/pts" || mount --bind /dev/pts "$root/dev/pts"
+ if mounted /mnt/ps5; then
+  mounted "$root/mnt/ps5" || mount --bind /mnt/ps5 "$root/mnt/ps5"
+ fi
+ cp /etc/resolv.conf "$root/etc/resolv.conf"
+ rmdir /run/ps5term-env-mount
+ trap - EXIT HUP INT TERM
+}
+
+unbind_mounts() { # every mount under $1, deepest first; fails if one stays
+ root=$1
+ for target in $(awk -v r="$root/" 'index($2, r) == 1 {print $2}' /proc/mounts | sort -r); do
+  umount "$target" 2>/dev/null || umount -l "$target" 2>/dev/null || true
+ done
+ ! awk -v r="$root/" 'index($2, r) == 1 {found=1} END {exit !found}' /proc/mounts
+}
+
+[ "$(uname -m)" = riscv64 ] || fail 'requires the PS5Term RISC-V Linux guest'
+command=${1:-list}
+[ "$#" -gt 0 ] && shift
+
+case "$command" in
+ list)
+  json=false; sizes=false
+  for option in "$@"; do
+   case "$option" in --json) json=true ;; --sizes) sizes=true ;; esac
+  done
+  $json || sizes=true
+  default=$(current_default)
+  if $json; then
+   disk=0; used=0
+   if mounted $DATA; then
+    set -- $(df -Pk $DATA | awk 'END {print $2, $3}')
+    disk=${1:-0}; used=${2:-0}
+   fi
+   printf '{"default":"%s","data":%s,"disk_kib":%s,"used_kib":%s,"environments":[' "$default" \
+    "$(mounted $DATA && echo true || echo false)" "$disk" "$used"
+  fi
+  first=true
+  for name in $NAMES; do
+   manifest "$name"; st=$(state "$name"); size=0
+   # -x: never count the bind mounts (/proc, /dev, /mnt/ps5) inside it.
+   if $sizes && [ "$st" = installed ]; then
+    size=$(du -skx "$ROOT" 2>/dev/null | awk '{print $1}')
+   fi
+   if $json; then
+    $first || printf ','; first=false
+    printf '{"name":"%s","title":"%s","manager":"%s","state":"%s","kib":%s,"need_kib":%s}' \
+     "$name" "$TITLE" "$MANAGER" "$st" "${size:-0}" "$NEED"
+   else
+    printf '%-8s %-18s %-9s %s KiB%s\n' "$name" "$TITLE" "$st" "${size:-0}" \
+     "$([ "$default" = "$name" ] && echo '  (default)' || true)"
+   fi
+  done
+  $json && printf ']}\n' || true
+  ;;
+
+ install)
+  name=${1:?usage: ps5term-env install <name> [archive]}; local_archive=${2:-}
+  manifest "$name"
+  mounted $DATA || fail 'the persistent data disk is not mounted'
+  [ ! -e "$ROOT" ] || fail "$ROOT exists; remove it first (ps5term-env remove $name)"
+  available=$(df -Pk $DATA | awk 'END {print $4}')
+  [ "${available:-0}" -ge "$NEED" ] ||
+   fail "$TITLE needs $((NEED / 1024)) MiB free and $((available / 1024)) MiB are free; expand storage"
+  mkdir /run/ps5term-env-install 2>/dev/null || fail 'another installation is running'
+  stage=$DATA/.ps5term-env-$name.install; archive=$DATA/.ps5term-env-$name.download
+  [ ! -e "$stage" ] && [ ! -e "$archive" ] ||
+   { rmdir /run/ps5term-env-install; fail 'leftover staging files; inspect them before retrying'; }
+  cleanup() { rm -f "$archive"; rm -rf "$stage"; rmdir /run/ps5term-env-install; }
+  trap cleanup EXIT
+  trap 'exit 130' HUP INT TERM
+  mkdir "$stage"
+  echo "Downloading $TITLE..."
+  if [ -n "$local_archive" ]; then
+   cp "$local_archive" "$archive"
+  else
+   curl --fail --location --proto '=https' --max-filesize "$MAX_DOWNLOAD" --connect-timeout 20 \
+    --max-time 900 --progress-bar "$URL" -o "$archive"
+  fi
+  echo "Checking the download..."
+  printf '%s  %s\n' "$SHA256" "$archive" | sha256sum -c - >/dev/null || fail 'download does not match its checksum'
+  echo "Unpacking (a minute or two)..."
+  tar -xzf "$archive" -C "$stage"
+  [ -f "$stage/$MARKER" ] || fail 'incomplete archive'
+  prepare "$name" "$stage"
+  sync
+  mv "$stage" "$ROOT"
+  echo "$TITLE installed. Open it with: ps5term-env open $name"
+  ;;
+
+ open)
+  name=${1:?usage: ps5term-env open <name>}
+  [ "$(state "$name")" = installed ] || "$0" install "$name"
+  exec "$0" enter "$name"
+  ;;
+
+ enter|run)
+  name=${1:?usage: ps5term-env $command <name>}; shift
+  manifest "$name"
+  [ -f "$ROOT/$MARKER" ] || fail "$TITLE is not installed (ps5term-env install $name)"
+  bind_mounts "$ROOT"
+  set -- env -i HOME=/root USER=root LOGNAME=root TERM="${TERM:-xterm-256color}" \
+   LANG=C.UTF-8 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+   PS5TERM_ENV="$name" "$@"
+  if [ "$command" = enter ]; then
+   # shellcheck disable=SC2086
+   exec chroot "$ROOT" "$@" $LOGIN
+  fi
+  [ "$#" -gt 9 ] || fail "usage: ps5term-env run $name <command> [arguments]"
+  exec chroot "$ROOT" "$@"
+  ;;
+
+ remove)
+  name=${1:?usage: ps5term-env remove <name>}
+  manifest "$name"
+  [ -d "$ROOT" ] || fail "$TITLE is not installed"
+  for proc in /proc/[0-9]*; do
+   [ "$(readlink "$proc/root" 2>/dev/null)" != "$ROOT" ] ||
+    fail "$TITLE is still in use (a shell or SSH session is inside it); exit it first"
+  done
+  unbind_mounts "$ROOT" || fail "$TITLE is still in use; exit it first"
+  [ "$(current_default)" != "$name" ] || echo base >"$DEFAULT_FILE"
+  rm -rf "$ROOT"
+  sync
+  echo "$TITLE removed."
+  ;;
+
+ default)
+  if [ "$#" -eq 0 ]; then current_default; exit 0; fi
+  case "$1" in
+   base) ;;
+   *) [ "$(state "$1")" = installed ] || fail "$1 is not installed" ;;
+  esac
+  echo "$1" >"$DEFAULT_FILE"
+  echo "New Linux shells start in: $1"
+  ;;
+
+ *) fail "usage: ps5term-env [list|install|open|enter|run|remove|default] ..." ;;
+esac

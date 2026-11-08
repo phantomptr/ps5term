@@ -41,7 +41,7 @@
   "features.kicker": "ما يفعله",
   "features.lead": "كل شيء يعمل داخل التطبيق. لا payload لإرساله، ولا خادم SSH منفصل، ولا حاجة إلى حاسوب لاستخدامه.",
   "features.linux.t1": "‏RISC-V Linux 6.12 مع BusyBox، وcurl مع HTTPS، وnano وtmux وhtop وjq وless.",
-  "features.linux.t2": "الملفات في <b>/mnt/data</b> تبقى بين مرات التشغيل؛ أضف Alpine وحزم <b>apk</b> الخاصة بها.",
+  "features.linux.t2": "الملفات في <b>/mnt/data</b> تبقى بين مرات التشغيل؛ أضف Alpine أو Ubuntu 24.04 مع حزم <b>apk</b> أو <b>apt</b> الخاصة بهما.",
   "features.linux.t3": "ملفات PS5 نفسها في <b>/mnt/ps5</b>. الإنترنت يخرج عبر التطبيق، ولا يمكن لأي شيء الاتصال إلى الداخل.",
   "features.linux.title": "صدفة Linux حقيقية",
   "features.title": "جهازك، مع سطر أوامر",

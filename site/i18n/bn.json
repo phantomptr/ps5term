@@ -41,7 +41,7 @@
   "features.kicker": "এটি কী করে",
   "features.lead": "সবকিছু অ্যাপের ভেতরেই চলে। কোনো পেলোড পাঠাতে হয় না, আলাদা SSH সার্ভার লাগে না, আর ব্যবহারের জন্য কম্পিউটারও লাগে না।",
   "features.linux.t1": "RISC-V Linux 6.12, সাথে BusyBox, HTTPS-সহ curl, nano, tmux, htop, jq আর less।",
-  "features.linux.t2": "<b>/mnt/data</b>-এর ফাইল প্রতিবার চালুর পরও থাকে; Alpine আর এর <b>apk</b> প্যাকেজ যোগ করুন।",
+  "features.linux.t2": "<b>/mnt/data</b>-এর ফাইল প্রতিবার চালুর পরও থাকে; Alpine বা Ubuntu 24.04 আর এদের <b>apk</b> বা <b>apt</b> প্যাকেজ যোগ করুন।",
   "features.linux.t3": "PS5-এর নিজের ফাইল আছে <b>/mnt/ps5</b>-এ। ইন্টারনেট অ্যাপের মাধ্যমে বাইরে যায়; ভেতরে কিছুই সংযোগ করতে পারে না।",
   "features.linux.title": "আসল Linux শেল",
   "features.title": "আপনার কনসোল, কমান্ড লাইনসহ",

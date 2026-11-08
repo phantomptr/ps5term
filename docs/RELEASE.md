@@ -41,6 +41,17 @@ Checked against the catalog's `docs/submitting.md` and `catalog/verify.py` on 20
 
 Never replace a published asset. A fix is a new version with a new tag.
 
+## Release notes: 00.001.004
+
+- New Linux environments screen (Settings → Linux environments): install and open Alpine
+  or Ubuntu 24.04 LTS, each in its own tab, with `apk` or `apt` packages kept on the
+  Linux disk. Make one the default for new Linux tabs, or remove it.
+- Grow the Linux disk to 1, 2 or 4 GiB (Ubuntu wants 1 GiB). Growing again now works too.
+- New `run` command in the built-in shell: run a PS5 program (ELF) in the tab, ncurses
+  menus included, through your ELF loader on port 9021. Ctrl+C interrupts it.
+- When you `exit` a Linux tab, it says the shell ended instead of "Linux stopped".
+- Full-screen programs no longer show a grey background where they ask for black.
+
 ## Release notes: 00.001.003
 
 - PS5Term now speaks all 21 languages of its website. New: Chinese (Simplified and

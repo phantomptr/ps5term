@@ -308,9 +308,9 @@ enum class SettingsButton
     speed_up,
     toggle_linux,
     toggle_host_mount,
-    expand_storage,
+    expand_storage, // Retired: storage grows on the Linux environments screen.
     text_size,
-    open_alpine,
+    environments,
     about,
     language
 };
@@ -318,8 +318,7 @@ enum class SettingsButton
 // full width below), mouse/text 864-920, actions 932-1048.
 constexpr Rect text_size_button{1260, 870, 160, 44};
 constexpr Rect language_button{640, 870, 600, 44};
-constexpr Rect alpine_button{668, 712, 300, 40};
-constexpr Rect storage_expand{988, 712, 816, 40};
+constexpr Rect environments_button{668, 712, 600, 40};
 constexpr Rect linux_switch{1320, 656, 484, 44};
 constexpr Rect host_mount_switch{88, 712, 560, 40};
 constexpr Rect ssh_retry{1320, 234, 224, 52};
@@ -329,6 +328,48 @@ constexpr Rect help_toggle = label_rect(84, 940, 26, 2), help_password = label_r
                help_retry = label_rect(676, 980, 32, 2), help_back = label_rect(84, 1020, 32, 2),
                help_about = label_rect(676, 1020, 22, 2);
 SettingsButton settings_button_at(int px, int py) noexcept;
+
+// Linux environments screen (Settings > Linux environments): one row per environment, then
+// storage. Rows start at env_row_y(index); every button sits on its row's first line.
+enum class EnvButton
+{
+    none,
+    default_base,
+    open_alpine,
+    default_alpine,
+    remove_alpine,
+    open_ubuntu,
+    default_ubuntu,
+    remove_ubuntu,
+    grow_1,
+    grow_2,
+    grow_4,
+    toggle_linux,
+    back
+};
+constexpr int env_row_y(unsigned environment) noexcept
+{
+    return 300 + static_cast<int>(environment) * 116;
+}
+constexpr Rect env_linux_switch{1320, 140, 484, 44};
+constexpr Rect env_open(unsigned environment) noexcept
+{
+    return {1040, env_row_y(environment), 220, 44};
+}
+constexpr Rect env_default(unsigned environment) noexcept
+{
+    return {1280, env_row_y(environment), 280, 44};
+}
+constexpr Rect env_remove(unsigned environment) noexcept
+{
+    return {1580, env_row_y(environment), 224, 44};
+}
+constexpr Rect env_grow(unsigned index) noexcept
+{
+    return {96 + static_cast<int>(index) * 300, 772, 280, 44};
+}
+Rect env_button_rect(EnvButton button) noexcept;
+EnvButton env_button_at(int px, int py) noexcept;
 
 // Main screen buttons.
 enum class MainButton

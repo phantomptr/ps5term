@@ -41,7 +41,7 @@
   "features.kicker": "Ce qu'il fait",
   "features.lead": "Tout tourne dans l'app. Pas de payload à envoyer, pas de serveur SSH séparé et pas besoin d'ordinateur pour l'utiliser.",
   "features.linux.t1": "RISC-V Linux 6.12 avec BusyBox, curl avec HTTPS, nano, tmux, htop, jq et less.",
-  "features.linux.t2": "Les fichiers dans <b>/mnt/data</b> restent d'un démarrage à l'autre ; ajoute Alpine et ses paquets <b>apk</b>.",
+  "features.linux.t2": "Les fichiers dans <b>/mnt/data</b> restent d'un démarrage à l'autre ; ajoute Alpine ou Ubuntu 24.04 avec leurs paquets <b>apk</b> ou <b>apt</b>.",
   "features.linux.t3": "Les fichiers de la PS5 sont dans <b>/mnt/ps5</b>. Internet sort par l'app ; rien ne peut se connecter de l'extérieur.",
   "features.linux.title": "Un vrai shell Linux",
   "features.title": "Ta console, avec une ligne de commande",

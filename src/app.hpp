@@ -3,6 +3,7 @@
 #include "connection.hpp"
 #include "demo_renderer.hpp"
 #include "input.hpp"
+#include "linux_environments.hpp"
 #include "mouse.hpp"
 #include "pointer.hpp"
 #include "research.hpp"
@@ -103,8 +104,8 @@ class App
         Editor editor;
         Connection connection;
         std::size_t scroll = 0;
-        Tab(int rows, int cols, platform::GuestAgent *peer) noexcept
-            : model(rows, cols), connection(peer ? Connection(peer) : Connection())
+        Tab(int rows, int cols, platform::GuestAgent *peer, const char *command = nullptr) noexcept
+            : model(rows, cols), connection(peer ? Connection(peer, command) : Connection())
         {
         }
     };
@@ -202,6 +203,43 @@ class App
     void draw_settings(ps5::demo::Canvas &canvas) noexcept;
     bool about_open_ = false; // The About page, shown in place of Settings.
     void draw_about(ps5::demo::Canvas &canvas) noexcept;
+    // Linux environments, shown in place of Settings. State comes from the guest's
+    // `ps5term-env list --json`, run (like every change) on a guest agent session.
+    bool environments_open_ = false;
+    ui::EnvButton environments_focus_ = ui::EnvButton::open_alpine;
+    LinuxEnvironments environments_;
+    enum class EnvironmentJob
+    {
+        none,
+        list,  // quick: names, states, default, disk
+        sizes, // slower: each installed environment's size
+        change
+    };
+    EnvironmentJob environment_job_ = EnvironmentJob::none;
+    int environment_handle_ = 0;
+    bool environments_refresh_ = false, environment_sizes_known_ = false;
+    std::uint64_t environment_retry_at_ = 0;
+    std::array<char, 2048> environment_output_{};
+    std::size_t environment_output_size_ = 0;
+    std::array<char, 200> environment_message_{};
+    bool environment_problem_ = false;
+    ui::EnvButton environment_armed_ = ui::EnvButton::none;
+    std::uint64_t environment_armed_until_ = 0;
+    unsigned environment_change_ = 0; // EnvButton of the running change
+    void open_environments() noexcept;
+    void storage_status(char *out, std::size_t size) const noexcept; // Empty when idle.
+    void draw_environments(ps5::demo::Canvas &canvas) noexcept;
+    void environments_key(Key key, char character) noexcept;
+    void environments_controller(std::uint32_t pressed) noexcept;
+    void environments_click() noexcept;
+    void environment_action(ui::EnvButton button) noexcept;
+    void move_environment_focus(int direction) noexcept;
+    bool environment_shown(ui::EnvButton button) const noexcept;
+    void tick_environments() noexcept;
+    bool start_environment_job(EnvironmentJob job, const char *command) noexcept;
+    void finish_environment_job(int status) noexcept;
+    bool open_environment_tab(LinuxEnvironment environment) noexcept;
+    void environment_say(const char *message, bool problem = false) noexcept;
     void update_address() noexcept;
     std::size_t scroll_ = 0;
     bool keyboard_ = false, shift_ = false;
@@ -234,8 +272,10 @@ class App
     void wheel(int notches) noexcept;
     unsigned settings_focus_ = 0, password_focus_ = 0, menu_focus_ = 0;
     bool focus_visible_ = false, menu_keyboard_ = false;
-    bool pending_alpine_ = false;
-    std::uint64_t alpine_ready_at_ = 0;
+    // An environment to open in a new tab once Linux has started (Linux environments screen).
+    bool pending_environment_ = false;
+    LinuxEnvironment pending_environment_name_ = LinuxEnvironment::base;
+    std::uint64_t environment_ready_at_ = 0;
     bool storage_requested_ = false;
     const char *storage_result_ = "";
     bool host_mount_whole_ = false, host_mount_error_ = false;

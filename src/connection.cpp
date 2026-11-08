@@ -44,6 +44,8 @@ bool Connection::select_environment(Environment environment) noexcept
 }
 void Connection::reconnect() noexcept
 {
+    program_.stop(); // The launcher stops a running program when its control closes.
+    program_mode_ = program_raw_ = false;
     if (guest_peer_ && guest_handle_)
     {
         guest_peer_->close(guest_handle_);
@@ -70,7 +72,7 @@ bool Connection::submit(std::string_view command) noexcept
 {
     if (!connected())
         return false;
-    if (native_ || linux_)
+    if (native_ || linux_ || program_mode_)
     {
         std::array<char, 4096> buf{};
         if (command.size() + 1 > buf.size())
@@ -83,7 +85,7 @@ bool Connection::submit(std::string_view command) noexcept
 }
 bool Connection::write_raw(const char *data, std::size_t size) noexcept
 {
-    if (!connected() || !(native_ || linux_) || !size)
+    if (!connected() || !(native_ || linux_ || program_mode_) || !size)
         return false;
     return data && transport_.write({data, size});
 }
@@ -91,6 +93,8 @@ bool Connection::interrupt() noexcept
 {
     if (!connected())
         return false;
+    if (program_mode_)
+        return program_.interrupt(); // SIGINT, as a TTY would send on Ctrl+C.
     if (native_ || linux_)
     {
         const char etx = '\x03';
@@ -151,6 +155,29 @@ platform::IoResult Connection::transport_write(void *context, const char *bytes,
                                                std::size_t size) noexcept
 {
     auto &self = *static_cast<Connection *>(context);
+    if (self.program_mode_)
+    {
+        // No TTY turns Ctrl+C into a signal for the program, so PS5Term does: the byte becomes
+        // SIGINT and is not passed on.
+        const char *interrupt = static_cast<const char *>(std::memchr(bytes, '\x03', size));
+        if (interrupt == bytes)
+        {
+            self.program_.interrupt();
+            return {1, platform::IoState::ok, 0};
+        }
+        if (interrupt)
+            size = static_cast<std::size_t>(interrupt - bytes);
+        // Enter is CR from the keyboard; a TTY would hand the program LF (ICRNL).
+        const char *enter = static_cast<const char *>(std::memchr(bytes, '\r', size));
+        if (enter == bytes)
+        {
+            auto result = self.program_.write("\n", 1);
+            return {result.count, result.state, result.native_error};
+        }
+        if (enter)
+            size = static_cast<std::size_t>(enter - bytes);
+        return self.program_.write(bytes, size);
+    }
     if (self.native_)
         return self.pty_launcher_.write(self.pty_child_, bytes, size);
     if (!self.linux_)
@@ -162,6 +189,8 @@ platform::IoResult Connection::transport_write(void *context, const char *bytes,
 platform::IoResult Connection::transport_read(void *context, char *bytes, std::size_t size) noexcept
 {
     auto &self = *static_cast<Connection *>(context);
+    if (self.program_mode_)
+        return self.program_.read(bytes, size);
     if (self.native_)
         return self.pty_launcher_.read(self.pty_child_, bytes, size);
     if (self.guest_peer_)
@@ -199,6 +228,14 @@ void Connection::tick_linux(TerminalModel &model) noexcept
     if (!guest_peer_)
         linux_vm_.agent().pump();
     transport_.pump(model, {this, transport_write, transport_read});
+    if (guest_peer_ && guest_peer_->alive() && transport_.eof())
+    {
+        // Only this tab's shell ended (exit); Linux itself still runs.
+        model.feed("\r\n[Linux shell ended]\r\n");
+        state_ = State::failed;
+        status_ = N_("Linux shell ended; Reconnect opens a new one");
+        return;
+    }
     if (transport_.eof() || transport_.failed())
     {
         model.feed("\r\n[Linux guest stopped]\r\n");
@@ -209,7 +246,7 @@ void Connection::tick_linux(TerminalModel &model) noexcept
         return;
     }
 }
-void Connection::tick(TerminalModel &model, std::uint64_t) noexcept
+void Connection::tick(TerminalModel &model, std::uint64_t now) noexcept
 {
     if (state_ == State::failed)
         return;
@@ -220,7 +257,9 @@ void Connection::tick(TerminalModel &model, std::uint64_t) noexcept
             guest_handle_ =
                 guest_peer_->alive()
                     ? guest_peer_->open(static_cast<unsigned>(model.columns()),
-                                        static_cast<unsigned>(model.rows()), "xterm-256color")
+                                        static_cast<unsigned>(model.rows()), "xterm-256color",
+                                        guest_command_ ? guest_command_ : "",
+                                        guest_command_ != nullptr)
                     : 0;
             if (!guest_handle_)
             {
@@ -280,10 +319,92 @@ void Connection::tick(TerminalModel &model, std::uint64_t) noexcept
         tick_linux(model);
         return;
     }
+    if (program_mode_)
+    {
+        tick_program(model, now);
+        return;
+    }
     builtin_.tick();
     transport_.pump(model, {this, transport_write, transport_read});
+    if (builtin_.program_requested())
+        start_program(model);
     // Printing a file can reset the terminal (ESC c); basic output uses LF-only lines.
     model.feed("\033[20h");
+}
+// `run PATH`: the program gets this tab until it ends; then the PS5 shell prompt returns.
+void Connection::start_program(TerminalModel &model) noexcept
+{
+    builtin_.program_taken();
+    if (!program_.start(builtin_.program_arguments(), builtin_.directory(),
+                        static_cast<unsigned>(model.columns()),
+                        static_cast<unsigned>(model.rows())))
+    {
+        char message[200];
+        std::snprintf(message, sizeof message, "%s\n", program_.failure());
+        builtin_.program_finished(message, 127);
+        return;
+    }
+    transport_.reset();
+    model.feed("\033[20h"); // A program without a TTY writes bare LF line ends.
+    program_mode_ = true;
+    program_raw_ = false;
+    program_ended_at_ = 0;
+}
+void Connection::tick_program(TerminalModel &model, std::uint64_t now) noexcept
+{
+    program_.tick();
+    if (program_.state() == platform::ProgramRunner::State::failed)
+    {
+        finish_program(model);
+        return;
+    }
+    // Never feed anything of PS5Term's own between the program's bytes: its escape
+    // sequences can arrive split across reads (seen on the console: ESC[?1049h cut in two
+    // never switched screens). Newline mode is set once, in start_program().
+    transport_.pump(model, {this, transport_write, transport_read});
+    program_raw_ = model.alternate_screen();
+    status_ = program_raw_ ? N_("PS5 program running full screen: keys go to it")
+                           : N_("PS5 program running: Enter sends a line, Ctrl+C interrupts");
+    if (program_.state() == platform::ProgramRunner::State::finished)
+    {
+        if (!program_ended_at_)
+            program_ended_at_ = now ? now : 1;
+        // Its last output can trail the exit report a little; a child it left running may
+        // hold the output open, so do not wait for ever.
+        if (program_.output_closed() || transport_.eof() || now - program_ended_at_ > 1000000)
+            finish_program(model);
+    }
+}
+void Connection::finish_program(TerminalModel &model) noexcept
+{
+    if (model.alternate_screen())
+        model.feed("\033[?1049l"); // A program that ended mid-screen leaves the shell readable.
+    model.feed("\033[0m\033[20h");
+    const auto arguments = builtin_.program_arguments();
+    auto name = arguments.substr(0, arguments.find('\0'));
+    if (const auto slash = name.rfind('/'); slash != std::string_view::npos)
+        name.remove_prefix(slash + 1);
+    char message[240];
+    int status = 127;
+    if (program_.state() == platform::ProgramRunner::State::failed)
+        std::snprintf(message, sizeof message, "\n%s\n", program_.failure());
+    else if (program_.killed())
+    {
+        status = 128 + program_.status();
+        std::snprintf(message, sizeof message, "\n[%.*s stopped by signal %d]\n",
+                      static_cast<int>(name.size()), name.data(), program_.status());
+    }
+    else
+    {
+        status = program_.status();
+        std::snprintf(message, sizeof message, "\n[%.*s exited with status %d]\n",
+                      static_cast<int>(name.size()), name.data(), status);
+    }
+    program_.stop();
+    program_mode_ = program_raw_ = false;
+    transport_.reset();
+    status_ = N_("Built-in shell ready");
+    builtin_.program_finished(message, status);
 }
 #else
 Connection::~Connection()

@@ -41,7 +41,7 @@
   "features.kicker": "Apa yang bisa dilakukan",
   "features.lead": "Semuanya berjalan di dalam aplikasi. Tidak perlu mengirim payload, tidak perlu server SSH terpisah, dan tidak perlu komputer untuk memakainya.",
   "features.linux.t1": "RISC-V Linux 6.12 dengan BusyBox, curl dengan HTTPS, nano, tmux, htop, jq, dan less.",
-  "features.linux.t2": "File di <b>/mnt/data</b> tetap tersimpan antar-peluncuran; tambahkan Alpine dan paket <b>apk</b>-nya.",
+  "features.linux.t2": "File di <b>/mnt/data</b> tetap tersimpan antar-peluncuran; tambahkan Alpine atau Ubuntu 24.04 beserta paket <b>apk</b> atau <b>apt</b>-nya.",
   "features.linux.t3": "File PS5 sendiri ada di <b>/mnt/ps5</b>. Internet keluar melalui aplikasi; tidak ada yang bisa terhubung masuk.",
   "features.linux.title": "Shell Linux sungguhan",
   "features.title": "Konsol Anda, dengan baris perintah",

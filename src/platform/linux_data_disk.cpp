@@ -1,6 +1,7 @@
 // PS5Term GPL-3.0-or-later.
 #include "linux_data_disk.hpp"
 #include <array>
+#include <new>
 #include <algorithm>
 #include <cstring>
 #include <cerrno>
@@ -32,22 +33,6 @@ bool valid_links(nlink_t count) noexcept
     return count == 1;
 #endif
 }
-// Native lstat can return EPERM even for readable paths. Inspect a no-follow
-// descriptor instead, as the existing SFTP/shared-folder adapters do.
-int inspect_path(const char *path, struct stat *st) noexcept
-{
-#if defined(__PROSPERO__) || defined(PS5TERM_DATA_NO_OPENAT)
-    const int fd = ::open(path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC);
-    if (fd < 0)
-        return -1;
-    const int result = ::fstat(fd, st), saved = errno;
-    ::close(fd);
-    errno = saved;
-    return result;
-#else
-    return ::lstat(path, st);
-#endif
-}
 int flags() noexcept
 {
     int value = O_RDWR | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC;
@@ -72,7 +57,7 @@ bool LinuxDataDisk::open(int directory, int seed, std::size_t size,
     close();
     error_.store(0);
     operation_.store("validate directory");
-    if (size < 2048 || size % 512 || size > 1024u * 1024u * 1024u)
+    if (size < 2048 || size % 512 || size > data_disk_max_bytes)
     {
         fail(EINVAL);
         return false;
@@ -167,8 +152,9 @@ bool LinuxDataDisk::open(int directory, int seed, std::size_t size,
     }
     operation_.store("check data file");
     if (::fstat(fd_, &st) < 0 || !S_ISREG(st.st_mode) || !valid_links(st.st_nlink) ||
-        (!created && (st.st_size < static_cast<off_t>(size) || st.st_size > 1024ll * 1024 * 1024 ||
-                      st.st_size % 512)))
+        (!created &&
+         (st.st_size < static_cast<off_t>(size) ||
+          static_cast<std::uint64_t>(st.st_size) > data_disk_max_bytes || st.st_size % 512)))
     {
         fail(EINVAL);
         close();
@@ -300,7 +286,7 @@ void LinuxDiskExpansion::join() noexcept
 }
 bool LinuxDiskExpansion::start(const char *directory, unsigned mib) noexcept
 {
-    if (busy() || !directory || mib < 16 || mib > 1024 ||
+    if (busy() || !directory || mib < 16 || mib > data_disk_max_bytes / (1024 * 1024) ||
         std::strlen(directory) >= sizeof(directory_) - 32)
         return false;
     join();
@@ -337,16 +323,22 @@ void *LinuxDiskExpansion::worker(void *opaque) noexcept
 }
 void LinuxDiskExpansion::expand() noexcept
 {
-    char source[1100], backup[1100], temporary_backup[1100], candidate[1100];
+    char source[1100], backup[1100], temporary_backup[1100], stale[1100];
     std::snprintf(source, sizeof(source), "%s/data.ext2", directory_);
     std::snprintf(backup, sizeof(backup), "%s/data.ext2.backup", directory_);
     std::snprintf(temporary_backup, sizeof(temporary_backup), "%s/data.ext2.backup.new",
                   directory_);
-    std::snprintf(candidate, sizeof(candidate), "%s/data.ext2.grow", directory_);
+    // Older versions grew a copy here; a crash could leave it behind.
+    std::snprintf(stale, sizeof(stale), "%s/data.ext2.grow", directory_);
     int parent = -1, original = -1, out = -1;
-    bool own_backup = false, own_candidate = false, own_final_backup = false;
+    bool own_backup = false;
+    // Large transfers: small ones are slow on the console. Off the 256 KiB worker stack.
+    constexpr std::size_t chunk = 1024 * 1024;
+    auto *bytes = new (std::nothrow) unsigned char[chunk];
     const auto work = [&]() -> int
     {
+        if (!bytes)
+            return ENOMEM;
         parent = ::open(directory_, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
         if (parent < 0)
             return errno;
@@ -357,7 +349,7 @@ void LinuxDiskExpansion::expand() noexcept
             return errno;
         struct stat st
         {
-        }, existing{};
+        };
         if (::fstat(original, &st))
             return errno;
         const uint64_t target = uint64_t(mib_) * 1024 * 1024;
@@ -376,10 +368,9 @@ void LinuxDiskExpansion::expand() noexcept
         if (!blocks || shift > 2 ||
             uint64_t(blocks) * (uint64_t(1024) << shift) > static_cast<uint64_t>(st.st_size))
             return EINVAL;
-        if (!inspect_path(backup, &existing))
-            return EEXIST;
-        if (errno != ENOENT)
-            return errno;
+        (void)::unlink(stale);
+        // An older backup is replaced once the new one is complete: the newest copy of the
+        // disk is the useful rollback, and keeping both would need twice the PS5 space.
         // A crash mid-copy can leave an incomplete temporary; it never holds anything the
         // live disk lacks, so replace it rather than refusing every later expansion.
         (void)::unlink(temporary_backup);
@@ -387,89 +378,50 @@ void LinuxDiskExpansion::expand() noexcept
         if (out < 0)
             return errno;
         own_backup = true;
-        std::array<unsigned char, 16384> bytes;
-        const auto copy = [&](int from, int to, unsigned base) -> bool
+        off_t offset = 0;
+        while (offset < st.st_size)
         {
-            off_t offset = 0;
-            while (offset < st.st_size)
+            const size_t count = static_cast<size_t>(
+                std::min<off_t>(static_cast<off_t>(chunk), st.st_size - offset));
+            ssize_t got = ::pread(original, bytes, count, offset);
+            if (got < 0 && errno == EINTR)
+                continue;
+            if (got <= 0)
+                return got ? errno : EIO;
+            ssize_t done = 0;
+            while (done < got)
             {
-                const size_t count =
-                    static_cast<size_t>(std::min<off_t>(bytes.size(), st.st_size - offset));
-                ssize_t got = ::pread(from, bytes.data(), count, offset);
-                if (got < 0 && errno == EINTR)
+                ssize_t wrote = ::pwrite(out, bytes + done, got - done, offset + done);
+                if (wrote < 0 && errno == EINTR)
                     continue;
-                if (got <= 0)
-                {
-                    if (!got)
-                        errno = EIO;
-                    return false;
-                }
-                ssize_t done = 0;
-                while (done < got)
-                {
-                    ssize_t wrote = ::pwrite(to, bytes.data() + done, got - done, offset + done);
-                    if (wrote < 0 && errno == EINTR)
-                        continue;
-                    if (wrote <= 0)
-                    {
-                        if (!wrote)
-                            errno = EIO;
-                        return false;
-                    }
-                    done += wrote;
-                }
-                offset += got;
-                progress_.store(base + static_cast<unsigned>(uint64_t(offset) * 45 / st.st_size));
+                if (wrote <= 0)
+                    return wrote ? errno : EIO;
+                done += wrote;
             }
-            return sync_fd(to);
-        };
-        if (!copy(original, out, 0))
+            offset += got;
+            progress_.store(static_cast<unsigned>(uint64_t(offset) * 95 / st.st_size));
+        }
+        if (!sync_fd(out))
             return errno;
-        // Keep the completed original as a persistent rollback before changing the active path.
+        // The completed copy becomes the persistent rollback before the live disk changes.
         if (::rename(temporary_backup, backup) || !sync_fd(parent))
             return errno;
         own_backup = false;
-        // Until the swap, this backup is a copy of the still-active disk: drop it on failure
-        // so a failed attempt does not block the next one.
-        own_final_backup = true;
-        ::close(out);
-        out = -1;
-        (void)::unlink(candidate);
-        out = ::open(candidate, flags() | O_CREAT | O_EXCL, 0600);
-        if (out < 0)
-            return errno;
-        own_candidate = true;
-        if (!copy(original, out, 45) || ::ftruncate(out, static_cast<off_t>(target)) ||
-            !sync_fd(out))
-            return errno;
-        struct stat current
-        {
-        };
-        if (inspect_path(source, &current))
-            return errno;
-        if (current.st_dev != st.st_dev || current.st_ino != st.st_ino ||
-            current.st_size != st.st_size || current.st_mtime != st.st_mtime)
-            return EBUSY;
-        if (::rename(candidate, source))
-            return errno;
-        own_candidate = false;
-        own_final_backup = false;
-        if (!sync_fd(parent))
+        // Growing only adds zeroed space at the end; the guest's resize2fs uses it at the
+        // next boot. A failure here leaves the disk at its old size, still usable.
+        if (::ftruncate(original, static_cast<off_t>(target)) || !sync_fd(original))
             return errno;
         progress_.store(100);
         return 0;
     };
     error_.store(work());
+    delete[] bytes;
     if (out >= 0)
         ::close(out);
     if (original >= 0)
         ::close(original);
     if (own_backup)
         ::unlink(temporary_backup);
-    if (own_candidate)
-        ::unlink(candidate);
-    if (own_final_backup)
-        ::unlink(backup);
     if (parent >= 0)
         ::close(parent);
 }

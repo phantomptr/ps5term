@@ -41,7 +41,7 @@
   "features.kicker": "Mit tud",
   "features.lead": "Minden az appon belül fut. Nem kell payloadot küldeni, nem kell külön SSH-szerver, és számítógép sem kell a használatához.",
   "features.linux.t1": "RISC-V Linux 6.12 BusyBoxszal, HTTPS-es curl, nano, tmux, htop, jq és less.",
-  "features.linux.t2": "A <b>/mnt/data</b> mappában lévő fájlok megmaradnak az indítások között; telepítsd az Alpine-t és az <b>apk</b> csomagjait.",
+  "features.linux.t2": "A <b>/mnt/data</b> mappában lévő fájlok megmaradnak az indítások között; telepítsd az Alpine-t vagy az Ubuntu 24.04-et az <b>apk</b> vagy <b>apt</b> csomagjaikkal.",
   "features.linux.t3": "A PS5 saját fájljai a <b>/mnt/ps5</b> alatt vannak. Az internet az appon keresztül megy ki; befelé semmi sem tud kapcsolódni.",
   "features.linux.title": "Valódi Linux-shell",
   "features.title": "A konzolod, parancssorral",

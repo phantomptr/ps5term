@@ -4,6 +4,8 @@
 #include "i18n.hpp"
 #include "diagnostics.hpp"
 #include <algorithm>
+#include <cerrno>
+#include <cstring>
 #include <cstdio>
 #include <cstdlib>
 #include <sys/socket.h>
@@ -138,6 +140,11 @@ void App::key(Key k, char ch) noexcept
             open_settings();
         return;
     }
+    if (settings_open_ && environments_open_)
+    {
+        environments_key(k, ch);
+        return;
+    }
     if (settings_open_ && about_open_)
     {
         // About is read-only: every key that means "back" returns to Settings.
@@ -154,7 +161,7 @@ void App::key(Key k, char ch) noexcept
             ui::SettingsButton::speed_down,     ui::SettingsButton::speed_up,
             ui::SettingsButton::toggle_linux,   ui::SettingsButton::toggle_host_mount,
             ui::SettingsButton::expand_storage, ui::SettingsButton::text_size,
-            ui::SettingsButton::open_alpine,    ui::SettingsButton::back,
+            ui::SettingsButton::environments,   ui::SettingsButton::back,
             ui::SettingsButton::about,          ui::SettingsButton::language};
         if (k == Key::tab || k == Key::down || k == Key::backtab || k == Key::up)
         {
@@ -564,19 +571,24 @@ void App::tick(std::uint64_t now) noexcept
                 reveal_search();
         }
     }
-    if (pending_alpine_)
+    if (pending_environment_)
     {
         if (connection_.failed() ||
             connection_.environment() != Connection::Environment::linux_guest)
-            pending_alpine_ = false;
+            pending_environment_ = false;
         else if (connection_.guest_agent().alive())
         {
-            if (!alpine_ready_at_)
-                alpine_ready_at_ = now + 1000000;
-            if (now >= alpine_ready_at_ && connection_.write_raw("ps5term-alpine open\n", 20))
-                pending_alpine_ = false;
+            // Let the first shell's login finish before a second session starts.
+            if (!environment_ready_at_)
+                environment_ready_at_ = now + 1000000;
+            if (now >= environment_ready_at_)
+            {
+                pending_environment_ = false;
+                open_environment_tab(pending_environment_name_);
+            }
         }
     }
+    tick_environments();
     // Keep a scrolled-back view on the same lines while new output arrives.
     if (const auto end = model().history_end(); end != seen_history_end_)
     {
@@ -696,6 +708,11 @@ void App::controller(std::uint32_t p, std::uint32_t held) noexcept
             close_settings();
         else
             open_settings();
+        return;
+    }
+    if (settings_open_ && environments_open_)
+    {
+        environments_controller(p);
         return;
     }
     if (settings_open_ && about_open_)
@@ -920,6 +937,8 @@ void App::draw(ps5::demo::Canvas &c) noexcept
         draw_password(c);
     else if (settings_open_ && about_open_)
         draw_about(c);
+    else if (settings_open_ && environments_open_)
+        draw_environments(c);
     else if (settings_open_)
         draw_settings(c);
     else
@@ -1396,34 +1415,20 @@ void App::draw_settings(ps5::demo::Canvas &c) noexcept
                 : tr("Isolated RISC-V Linux. Temporary disk; no network or PS5 files. SSH stays "
                      "native."),
             2, muted);
-    char storage_label[128];
-    if (connection_.storage_busy())
-        i18n::format(storage_label, sizeof(storage_label),
-                     trc("Expanding storage: %u%% (keep app open)"),
-                     connection_.storage_progress());
-    else if (storage_requested_ && connection_.storage_error())
-        i18n::format(storage_label, sizeof(storage_label),
-                     trc("Expansion failed (%d): backup kept if created"),
-                     connection_.storage_error());
-    else if (storage_requested_)
-        i18n::format(storage_label, sizeof(storage_label),
-                     trc("512 MiB ready; start Linux to finish filesystem growth"));
-    else
-        i18n::format(storage_label, sizeof(storage_label),
-                     trc("Expand data to 512 MiB (keeps backup)"));
+    char storage_label[160];
+    storage_status(storage_label, sizeof storage_label);
     char link_failure[160] = "";
     if (const char *why = connection_.guest_agent().failure())
         i18n::format(
             link_failure, sizeof(link_failure),
             trc("SSH link to Linux failed (%s). Stop Linux and start it again for linux@."), why);
-    label_button(c, ui::alpine_button, tr("Open / install Alpine"), 2, cyan);
-    label_button(c, ui::storage_expand, storage_label, 2, cyan);
+    label_button(c, ui::environments_button, tr("Linux environments and storage..."), 2, cyan);
+    if (storage_label[0])
+        c.text(1300, 720, storage_label, 2, cyan);
     const bool armed = now_ < armed_until_;
     c.text(96, 808,
            armed && armed_button_ == ui::SettingsButton::toggle_linux
                ? tr("Press Stop Linux again to stop: Linux shells and linux@ SSH sessions end.")
-           : armed && armed_button_ == ui::SettingsButton::expand_storage
-               ? tr("Press Expand again to grow the Linux data disk to 512 MiB (keeps a backup).")
            : storage_result_[0]       ? storage_result_
            : linux && link_failure[0] ? link_failure
            : linux                    ? tr(connection_.status())
@@ -1536,7 +1541,7 @@ void App::draw_about(ps5::demo::Canvas &c) noexcept
         N_("SSH and SFTP: wolfSSH and wolfSSL    Terminal: libvterm by Paul Evans"),
         N_("Linux: TinyEMU by Fabrice Bellard, libslirp (QEMU project), Buildroot, Linux, OpenSBI, "
            "musl, "
-           "BusyBox; optional Alpine Linux"),
+           "BusyBox; optional Alpine Linux and Ubuntu"),
         N_("Fonts: JetBrains Mono (JetBrains), font8x8 (Daniel Hepper)    Research notes: kstuff "
            "contributors, kodi-ps5"),
         N_("Each project keeps its own license. Full credits and notices: NOTICE.md in the "
@@ -1753,6 +1758,8 @@ void App::mouse(const MouseSample &s, std::uint64_t now) noexcept
             close_search();
         else if (settings_open_ && about_open_)
             about_open_ = false;
+        else if (settings_open_ && environments_open_)
+            environments_open_ = false;
         else if (settings_open_)
             close_settings(); // right-click = back, like Circle
         else if (menu_open_)
@@ -2028,6 +2035,11 @@ void App::settings_click() noexcept
             about_open_ = false;
         return;
     }
+    if (environments_open_)
+    {
+        environments_click();
+        return;
+    }
     auto button = ui::settings_button_at(pointer_.x, pointer_.y);
     log_.line("settings click x=%d y=%d button=%d", pointer_.x, pointer_.y,
               static_cast<int>(button));
@@ -2052,11 +2064,9 @@ void App::settings_action(ui::SettingsButton button) noexcept
         settings_focus_ = 6;
     else if (button == ui::SettingsButton::toggle_host_mount)
         settings_focus_ = 7;
-    else if (button == ui::SettingsButton::expand_storage)
-        settings_focus_ = 8;
     else if (button == ui::SettingsButton::text_size)
         settings_focus_ = 9;
-    else if (button == ui::SettingsButton::open_alpine)
+    else if (button == ui::SettingsButton::environments)
         settings_focus_ = 10;
     else if (button == ui::SettingsButton::back)
         settings_focus_ = 11;
@@ -2092,36 +2102,11 @@ void App::settings_action(ui::SettingsButton button) noexcept
                 host_mount_whole_ = !host_mount_whole_;
         }
         break;
-    case ui::SettingsButton::open_alpine:
-        switch_tab(0);
-        if (Connection::linux_available() && !connection_.storage_busy())
-        {
-            if (connection_.environment() != Connection::Environment::linux_guest)
-            {
-                if (!connection_.select_environment(Connection::Environment::linux_guest))
-                    break;
-                reset_terminal();
-            }
-            pending_alpine_ = true;
-            alpine_ready_at_ = 0;
-            close_settings();
-        }
+    case ui::SettingsButton::environments:
+        open_environments();
         break;
     case ui::SettingsButton::text_size:
         cycle_text_size();
-        break;
-    case ui::SettingsButton::expand_storage:
-        if (connection_.environment() == Connection::Environment::linux_guest)
-            storage_result_ = trc("Stop Linux before expanding storage");
-        else if (!connection_.storage_busy() && !confirmed(button))
-            break;
-        else if (connection_.expand_linux_storage(512))
-        {
-            storage_requested_ = true;
-            storage_result_ = "";
-        }
-        else
-            storage_result_ = trc("Cannot expand: stop Linux or wait for the current expansion");
         break;
     case ui::SettingsButton::toggle_linux:
         // Stopping ends every Linux shell and SSH linux@ session: ask once more.
@@ -2153,6 +2138,7 @@ void App::settings_action(ui::SettingsButton button) noexcept
     case ui::SettingsButton::speed_up:
         set_speed(speed_ + 1);
         break;
+    case ui::SettingsButton::expand_storage:
     case ui::SettingsButton::none:
         break;
     }
@@ -2433,6 +2419,7 @@ void App::open_settings() noexcept
     output_selection_ = false;
     settings_open_ = true;
     about_open_ = false;
+    environments_open_ = false;
     settings_focus_ = 0;
     host_mount_whole_ = active_connection().linux_mounts_whole_console();
     host_mount_error_ = false;
@@ -2445,6 +2432,7 @@ void App::close_settings() noexcept
 {
     settings_open_ = false;
     about_open_ = false;
+    environments_open_ = false;
     password_visible_ = false;
     password_entry_.cancel();
 }
@@ -2598,6 +2586,11 @@ bool App::focused(const ui::Rect &r) const noexcept
     const auto same = [&r](const ui::Rect &other) { return r.x == other.x && r.y == other.y; };
     if (about_open_)
         return same(ui::help_back);
+    if (environments_open_)
+    {
+        const auto rect = ui::env_button_rect(environments_focus_);
+        return same(rect);
+    }
     if (password_entry_.active())
         return (password_focus_ == 1 && same(ui::osk_shift)) ||
                (password_focus_ == 2 && same(ui::osk_delete)) ||
@@ -2611,9 +2604,8 @@ bool App::focused(const ui::Rect &r) const noexcept
            (settings_focus_ == 5 && same(ui::speed_up_rect)) ||
            (settings_focus_ == 6 && same(ui::linux_switch)) ||
            (settings_focus_ == 7 && same(ui::host_mount_switch)) ||
-           (settings_focus_ == 8 && same(ui::storage_expand)) ||
            (settings_focus_ == 9 && same(ui::text_size_button)) ||
-           (settings_focus_ == 10 && same(ui::alpine_button)) ||
+           (settings_focus_ == 10 && same(ui::environments_button)) ||
            (settings_focus_ == 11 && same(ui::help_back)) ||
            (settings_focus_ == 12 && same(ui::help_about)) ||
            (settings_focus_ == 13 && same(ui::language_button));
@@ -3142,7 +3134,7 @@ bool App::confirmed(ui::SettingsButton button) noexcept
 }
 void App::move_settings_focus(int direction) noexcept
 {
-    static constexpr unsigned order[] = {0, 3, 6, 7, 10, 8, 13, 9, 4, 5, 1, 2, 11, 12};
+    static constexpr unsigned order[] = {0, 3, 6, 7, 10, 13, 9, 4, 5, 1, 2, 11, 12};
     constexpr unsigned count = sizeof order / sizeof *order;
     unsigned at = 0;
     while (at < count && order[at] != settings_focus_)
@@ -3250,5 +3242,568 @@ void App::draw_tabs(ps5::demo::Canvas &c) noexcept
         label_button(c, rect, title, 1, i == active_tab_ ? cyan : muted);
     }
     c.text(700, 116, tab_notice_, 1, muted);
+}
+
+// ---- Linux environments ----------------------------------------------------
+// Base, Alpine and Ubuntu (tooling/subsystem/guest/overlay/usr/bin/ps5term-env). Opening one
+// starts a new tab whose program is `ps5term-env open <name>`, so an install shows its
+// download and unpacking right there, and `exit` ends just that tab.
+
+namespace
+{
+using ui::EnvButton;
+constexpr const char *environment_open_command[linux_environment_count] = {
+    nullptr, "ps5term-env open alpine", "ps5term-env open ubuntu"};
+constexpr const char *environment_default_command[linux_environment_count] = {
+    "ps5term-env default base", "ps5term-env default alpine", "ps5term-env default ubuntu"};
+constexpr const char *environment_remove_command[linux_environment_count] = {
+    nullptr, "ps5term-env remove alpine", "ps5term-env remove ubuntu"};
+// Top to bottom, left to right, as drawn.
+constexpr EnvButton environment_order[] = {
+    EnvButton::toggle_linux,   EnvButton::default_base,  EnvButton::open_alpine,
+    EnvButton::default_alpine, EnvButton::remove_alpine, EnvButton::open_ubuntu,
+    EnvButton::default_ubuntu, EnvButton::remove_ubuntu, EnvButton::grow_1,
+    EnvButton::grow_2,         EnvButton::grow_4,        EnvButton::back};
+constexpr unsigned grow_mib[] = {1024, 2048, 4096};
+struct EnvironmentButton
+{
+    unsigned environment; // LinuxEnvironment index, or linux_environment_count
+    enum
+    {
+        open,
+        make_default,
+        remove,
+        grow,
+        other
+    } kind;
+    unsigned grow_index;
+};
+EnvironmentButton describe(EnvButton button) noexcept
+{
+    switch (button)
+    {
+    case EnvButton::default_base:
+        return {0, EnvironmentButton::make_default, 0};
+    case EnvButton::open_alpine:
+        return {1, EnvironmentButton::open, 0};
+    case EnvButton::default_alpine:
+        return {1, EnvironmentButton::make_default, 0};
+    case EnvButton::remove_alpine:
+        return {1, EnvironmentButton::remove, 0};
+    case EnvButton::open_ubuntu:
+        return {2, EnvironmentButton::open, 0};
+    case EnvButton::default_ubuntu:
+        return {2, EnvironmentButton::make_default, 0};
+    case EnvButton::remove_ubuntu:
+        return {2, EnvironmentButton::remove, 0};
+    case EnvButton::grow_1:
+        return {linux_environment_count, EnvironmentButton::grow, 0};
+    case EnvButton::grow_2:
+        return {linux_environment_count, EnvironmentButton::grow, 1};
+    case EnvButton::grow_4:
+        return {linux_environment_count, EnvironmentButton::grow, 2};
+    default:
+        return {linux_environment_count, EnvironmentButton::other, 0};
+    }
+}
+} // namespace
+
+void App::storage_status(char *out, std::size_t size) const noexcept
+{
+    out[0] = '\0';
+    if (connection_.storage_busy())
+        i18n::format(out, size, trc("Expanding storage: %u%% (keep app open)"),
+                     connection_.storage_progress());
+    else if (storage_requested_ && connection_.storage_error() == ENOSPC)
+        i18n::format(out, size, "%s",
+                     trc("Not enough free space on the PS5 to grow the Linux disk"));
+    else if (storage_requested_ && connection_.storage_error())
+        i18n::format(out, size, trc("Expansion failed (%d): backup kept if created"),
+                     connection_.storage_error());
+    else if (storage_requested_ &&
+             connection_.environment() != Connection::Environment::linux_guest)
+        i18n::format(out, size, trc("%u MiB ready; start Linux to finish filesystem growth"),
+                     connection_.storage_mib());
+}
+void App::open_environments() noexcept
+{
+    environments_open_ = true;
+    environments_focus_ = EnvButton::open_alpine;
+    environments_refresh_ = true;
+    environment_retry_at_ = 0;
+    environment_message_[0] = '\0';
+    environment_armed_ = EnvButton::none;
+}
+void App::environment_say(const char *message, bool problem) noexcept
+{
+    std::snprintf(environment_message_.data(), environment_message_.size(), "%s", message);
+    environment_problem_ = problem;
+}
+bool App::environment_shown(EnvButton button) const noexcept
+{
+    const auto info = describe(button);
+    switch (info.kind)
+    {
+    case EnvironmentButton::open:
+        return true;
+    case EnvironmentButton::make_default:
+        return environments_.known && environments_.installed[info.environment] &&
+               environments_.default_environment != static_cast<LinuxEnvironment>(info.environment);
+    case EnvironmentButton::remove:
+        return environments_.known && environments_.installed[info.environment];
+    case EnvironmentButton::grow:
+        return platform::LinuxSubsystem::persistence_available() &&
+               connection_.storage_mib() != 0 &&
+               connection_.storage_mib() < grow_mib[info.grow_index];
+    case EnvironmentButton::other:
+        break;
+    }
+    return button != EnvButton::toggle_linux || Connection::linux_available();
+}
+void App::move_environment_focus(int direction) noexcept
+{
+    constexpr unsigned count = sizeof environment_order / sizeof *environment_order;
+    unsigned at = 0;
+    while (at < count && environment_order[at] != environments_focus_)
+        ++at;
+    for (unsigned step = 0; step < count; ++step)
+    {
+        at = (at + (direction < 0 ? count - 1 : 1U)) % count;
+        if (environment_shown(environment_order[at]))
+        {
+            environments_focus_ = environment_order[at];
+            return;
+        }
+    }
+}
+void App::environments_key(Key k, char ch) noexcept
+{
+    if (k == Key::tab || k == Key::down || k == Key::right || k == Key::backtab || k == Key::up ||
+        k == Key::left)
+    {
+        if (!environment_shown(environments_focus_))
+            environments_focus_ = EnvButton::back;
+        move_environment_focus((k == Key::backtab || k == Key::up || k == Key::left) ? -1 : 1);
+        focus_visible_ = true;
+    }
+    else if (k == Key::escape || k == Key::backspace)
+        environments_open_ = false;
+    else if (k == Key::enter || (k == Key::character && ch == ' '))
+    {
+        if (environment_shown(environments_focus_))
+            environment_action(environments_focus_);
+    }
+}
+void App::environments_controller(std::uint32_t p) noexcept
+{
+    if (p & 0x2000) // Circle
+    {
+        environments_open_ = false;
+        return;
+    }
+    if (p & (0x0010 | 0x0080)) // D-pad up / left
+        environments_key(Key::up, 0);
+    if (p & (0x0040 | 0x0020)) // D-pad down / right
+        environments_key(Key::down, 0);
+    if (p & 0x4000) // Cross
+        environments_key(Key::enter, 0);
+}
+void App::environments_click() noexcept
+{
+    const auto button = ui::env_button_at(pointer_.x, pointer_.y);
+    if (button == EnvButton::none || !environment_shown(button))
+        return;
+    focus_visible_ = false;
+    environment_action(button);
+}
+bool App::open_environment_tab(LinuxEnvironment environment) noexcept
+{
+    const auto index = static_cast<unsigned>(environment);
+    auto *peer = &connection_.guest_agent();
+    if (!index || index >= linux_environment_count)
+        return false;
+    if (!peer->alive())
+    {
+        tab_notice_ = trc("Linux is starting or stopped; retry New tab when ready");
+        environment_say(tab_notice_, true);
+        return false;
+    }
+    for (unsigned i = 0; i < tabs_.size(); ++i)
+    {
+        if (tabs_[i])
+            continue;
+        auto tab = std::unique_ptr<Tab>(new (std::nothrow) Tab(
+            model().rows(), model().columns(), peer, environment_open_command[index]));
+        if (!tab || !tab->model.healthy())
+        {
+            tab_notice_ = trc("Cannot allocate a terminal tab");
+            environment_say(tab_notice_, true);
+            return false;
+        }
+        tab->model.set_default_colors({212, 224, 237}, {0, 0, 0});
+        tabs_[i] = std::move(tab);
+        switch_tab(i + 1);
+        tab_notice_ = trc("exit leaves the environment; Reconnect opens it again");
+        return true;
+    }
+    tab_notice_ = trc("Four tabs maximum. Close a tab before opening another.");
+    environment_say(tab_notice_, true);
+    return false;
+}
+bool App::start_environment_job(EnvironmentJob job, const char *command) noexcept
+{
+    if (environment_job_ != EnvironmentJob::none)
+    {
+        if (job == EnvironmentJob::change)
+            environment_say(trc("Wait for the current change to finish"), true);
+        return false;
+    }
+    auto &agent = connection_.guest_agent();
+    const int handle = agent.alive() ? agent.open(80, 24, "dumb", command, false) : 0;
+    if (!handle)
+    {
+        if (job == EnvironmentJob::change)
+            environment_say(
+                agent.alive()
+                    ? trc("Linux shell slots full; close a tab or SSH session, then Reconnect")
+                    : trc("Linux is stopped or starting; Reconnect when ready"),
+                true);
+        return false;
+    }
+    agent.finish_input(handle);
+    environment_job_ = job;
+    environment_handle_ = handle;
+    environment_output_size_ = 0;
+    return true;
+}
+void App::finish_environment_job(int status) noexcept
+{
+    const auto job = environment_job_;
+    environment_job_ = EnvironmentJob::none;
+    environment_handle_ = 0;
+    const std::string_view output(environment_output_.data(), environment_output_size_);
+    if (job == EnvironmentJob::list || job == EnvironmentJob::sizes)
+    {
+        if (status != 0 || !parse_linux_environments(output, environments_))
+            environment_retry_at_ = now_ + 5000000;
+        else if (job == EnvironmentJob::sizes)
+            environment_sizes_known_ = true;
+        return;
+    }
+    environments_refresh_ = true;
+    const auto info = describe(static_cast<EnvButton>(environment_change_));
+    const char *title = linux_environment_info(
+                            static_cast<LinuxEnvironment>(
+                                info.environment < linux_environment_count ? info.environment : 0))
+                            .title;
+    char line[200];
+    if (status == 0)
+    {
+        if (info.kind == EnvironmentButton::remove)
+            i18n::format(line, sizeof line, trc("%s removed"), title);
+        else
+            i18n::format(line, sizeof line, trc("New Linux tabs now open in %s"), title);
+        environment_say(line);
+        return;
+    }
+    // The guest's own reason (English, like all program output): its last line.
+    auto text = output;
+    while (!text.empty() && (text.back() == '\n' || text.back() == '\r' || text.back() == ' '))
+        text.remove_suffix(1);
+    if (const auto newline = text.find_last_of('\n'); newline != std::string_view::npos)
+        text.remove_prefix(newline + 1);
+    if (text.empty())
+        i18n::format(line, sizeof line, trc("The change failed (status %d)"), status);
+    else
+        std::snprintf(line, sizeof line, "%.*s",
+                      static_cast<int>(std::min<std::size_t>(text.size(), 160)), text.data());
+    environment_say(line, true);
+}
+void App::tick_environments() noexcept
+{
+    auto &agent = connection_.guest_agent();
+    const bool running = connection_.environment() == Connection::Environment::linux_guest &&
+                         !connection_.failed() && agent.alive();
+    if (!running)
+    {
+        // Stopping Linux ends every agent session; nothing is known until it runs again.
+        if (environment_job_ != EnvironmentJob::none)
+        {
+            environment_job_ = EnvironmentJob::none;
+            environment_handle_ = 0;
+        }
+        environments_.known = false;
+        return;
+    }
+    if (environment_job_ != EnvironmentJob::none)
+    {
+        char bytes[512];
+        for (std::size_t got; (got = agent.read(environment_handle_, bytes, sizeof bytes));)
+        {
+            const auto room = environment_output_.size() - environment_output_size_;
+            const auto keep = std::min(got, room);
+            std::memcpy(environment_output_.data() + environment_output_size_, bytes, keep);
+            environment_output_size_ += keep;
+        }
+        int status = 0;
+        const auto state = agent.state(environment_handle_, &status);
+        if (state == platform::GuestAgent::State::exited ||
+            state == platform::GuestAgent::State::gone)
+        {
+            agent.close(environment_handle_);
+            finish_environment_job(state == platform::GuestAgent::State::gone ? -1 : status);
+        }
+        return;
+    }
+    if (!environments_open_ || now_ < environment_retry_at_)
+        return;
+    if ((environments_refresh_ || !environments_.known) &&
+        start_environment_job(EnvironmentJob::list, "ps5term-env list --json"))
+    {
+        environments_refresh_ = false;
+        environment_sizes_known_ = false;
+    }
+    else if (environments_.known && !environment_sizes_known_)
+        start_environment_job(EnvironmentJob::sizes, "ps5term-env list --json --sizes");
+}
+void App::environment_action(EnvButton button) noexcept
+{
+    environments_focus_ = button;
+    const auto info = describe(button);
+    const bool running = connection_.environment() == Connection::Environment::linux_guest;
+    // A second press within five seconds confirms what deletes or interrupts.
+    const auto confirm = [this, button](const char *question)
+    {
+        if (environment_armed_ == button && now_ < environment_armed_until_)
+        {
+            environment_armed_ = EnvButton::none;
+            return true;
+        }
+        environment_armed_ = button;
+        environment_armed_until_ = now_ + 5000000;
+        environment_say(question);
+        return false;
+    };
+    char line[200];
+    switch (info.kind)
+    {
+    case EnvironmentButton::open:
+    {
+        const auto &about = linux_environment_info(static_cast<LinuxEnvironment>(info.environment));
+        if (connection_.storage_busy())
+        {
+            environment_say(trc("Wait for the Linux disk to finish growing"), true);
+            return;
+        }
+        const auto free_mib =
+            (environments_.disk_kib - std::min(environments_.disk_kib, environments_.used_kib)) /
+            1024;
+        if (environments_.known && !environments_.installed[info.environment] &&
+            free_mib < about.need_mib)
+        {
+            i18n::format(line, sizeof line,
+                         trc("%s needs %u MiB free on the Linux disk and %u MiB are free: grow "
+                             "storage below"),
+                         about.title, about.need_mib, static_cast<unsigned>(free_mib));
+            environment_say(line, true);
+            return;
+        }
+        if (!running || !connection_.guest_agent().alive())
+        {
+            switch_tab(0);
+            if (!running)
+            {
+                if (!connection_.select_environment(Connection::Environment::linux_guest))
+                {
+                    environment_say(trc("Cannot start Linux"), true);
+                    return;
+                }
+                reset_terminal();
+            }
+            pending_environment_ = true;
+            pending_environment_name_ = static_cast<LinuxEnvironment>(info.environment);
+            environment_ready_at_ = 0;
+            close_settings();
+            return;
+        }
+        if (open_environment_tab(static_cast<LinuxEnvironment>(info.environment)))
+            close_settings();
+        return;
+    }
+    case EnvironmentButton::make_default:
+        if (environments_.default_environment == static_cast<LinuxEnvironment>(info.environment))
+            return;
+        if (start_environment_job(EnvironmentJob::change,
+                                  environment_default_command[info.environment]))
+        {
+            environment_change_ = static_cast<unsigned>(button);
+            environment_say(trc("Working..."));
+        }
+        return;
+    case EnvironmentButton::remove:
+        i18n::format(line, sizeof line,
+                     trc("Press Remove again to delete %s and everything installed in it"),
+                     linux_environment_info(static_cast<LinuxEnvironment>(info.environment)).title);
+        if (!confirm(line))
+            return;
+        if (start_environment_job(EnvironmentJob::change,
+                                  environment_remove_command[info.environment]))
+        {
+            environment_change_ = static_cast<unsigned>(button);
+            environment_say(trc("Working..."));
+        }
+        return;
+    case EnvironmentButton::grow:
+    {
+        const unsigned mib = grow_mib[info.grow_index];
+        if (running)
+        {
+            environment_say(trc("Stop Linux first: the disk grows while Linux is stopped"), true);
+            return;
+        }
+        i18n::format(line, sizeof line,
+                     trc("Press again to grow the Linux disk to %u GiB. It keeps a backup, so "
+                         "the PS5 needs about %u GiB free."),
+                     mib / 1024, (mib + connection_.storage_mib() + 1023) / 1024);
+        if (!confirm(line))
+            return;
+        if (connection_.expand_linux_storage(mib))
+        {
+            storage_requested_ = true;
+            storage_result_ = "";
+            environment_message_[0] = '\0';
+        }
+        else
+            environment_say(trc("Cannot expand: stop Linux or wait for the current expansion"),
+                            true);
+        return;
+    }
+    case EnvironmentButton::other:
+        break;
+    }
+    if (button == EnvButton::back)
+        environments_open_ = false;
+    else if (button == EnvButton::toggle_linux)
+    {
+        if (running && !confirm(trc("Press Stop Linux again to stop: Linux shells and linux@ SSH "
+                                    "sessions end.")))
+            return;
+        switch_tab(0);
+        if (connection_.select_environment(running ? Connection::Environment::console
+                                                   : Connection::Environment::linux_guest))
+        {
+            reset_terminal();
+            environments_.known = false;
+            environments_refresh_ = true;
+            environment_message_[0] = '\0';
+        }
+    }
+}
+void App::draw_environments(ps5::demo::Canvas &c) noexcept
+{
+    c.clear(bg);
+    c.text(84, 70, ">_", 3, cyan);
+    c.text(174, 70, tr("PS5Term / Linux environments"), 3, text);
+    const bool running = connection_.environment() == Connection::Environment::linux_guest;
+    c.text(84, 140,
+           tr("Each one is a Linux distribution with its own packages, kept on the Linux disk."), 2,
+           muted);
+    c.text(84, 176,
+           running
+               ? tr(connection_.status())
+               : tr("Linux is stopped. Open starts it; Make default and Remove need it running."),
+           1, muted);
+    if (Connection::linux_available())
+        label_button(c, ui::env_linux_switch,
+                     running ? tr("Stop Linux / return to PS5") : tr("Start Linux"), 2, cyan);
+
+    c.rectangle(64, 236, 1792, 410, surface);
+    c.text(96, 256, tr("ENVIRONMENTS"), 2, text);
+    char line[200];
+    for (unsigned i = 0; i < linux_environment_count; ++i)
+    {
+        const auto environment = static_cast<LinuxEnvironment>(i);
+        const auto &info = linux_environment_info(environment);
+        const int y = ui::env_row_y(i);
+        c.text(96, to_unsigned(y + 6), info.title, 3, text);
+        c.text(96, to_unsigned(y + 52), tr(info.about), 2, muted);
+        const bool is_default =
+            environments_.known && environments_.default_environment == environment;
+        if (i == 0)
+            std::snprintf(line, sizeof line, "%s", trc("Built in"));
+        else if (!environments_.known)
+            line[0] = '\0';
+        else if (environments_.installed[i] && !environments_.kib[i])
+            std::snprintf(line, sizeof line, "%s", trc("Installed"));
+        else if (environments_.installed[i])
+            i18n::format(line, sizeof line, trc("Installed, %u MiB"),
+                         static_cast<unsigned>((environments_.kib[i] + 1023) / 1024));
+        else
+            i18n::format(line, sizeof line, trc("Not installed: needs %u MiB"), info.need_mib);
+        c.text(420, to_unsigned(y + 12), line, 2,
+               i == 0 || environments_.installed[i] ? cyan : muted);
+        if (is_default)
+            c.text(700, to_unsigned(y + 12), tr("Default: new tabs open here"), 2, cyan);
+        if (i > 0)
+            label_button(c, ui::env_open(i),
+                         environments_.known && !environments_.installed[i] ? tr("Install and open")
+                                                                            : tr("Open"),
+                         2, cyan);
+        const auto default_button = i == 0   ? EnvButton::default_base
+                                    : i == 1 ? EnvButton::default_alpine
+                                             : EnvButton::default_ubuntu;
+        if (environment_shown(default_button))
+            label_button(c, ui::env_default(i), tr("Make default"), 2, cyan);
+        if (i > 0 &&
+            environment_shown(i == 1 ? EnvButton::remove_alpine : EnvButton::remove_ubuntu))
+            label_button(c, ui::env_remove(i), tr("Remove..."), 2, palette[1]);
+    }
+
+    c.rectangle(64, 666, 1792, 190, surface);
+    c.text(96, 686, tr("STORAGE"), 2, text);
+    unsigned disk = connection_.storage_mib();
+    if (!disk && environments_.known)
+        disk = static_cast<unsigned>(environments_.disk_kib / 1024);
+    if (environments_.known && environments_.disk_kib)
+        i18n::format(
+            line, sizeof line, trc("Linux disk: %u MiB, %u MiB used, %u MiB free"), disk,
+            static_cast<unsigned>(environments_.used_kib / 1024),
+            static_cast<unsigned>((environments_.disk_kib -
+                                   std::min(environments_.disk_kib, environments_.used_kib)) /
+                                  1024));
+    else if (disk)
+        i18n::format(line, sizeof line, trc("Linux disk: %u MiB"), disk);
+    else
+        std::snprintf(line, sizeof line, "%s",
+                      trc("The Linux disk is created the first time Linux starts."));
+    c.text(96, 726, line, 2, muted);
+    constexpr const char *grow_label[] = {N_("Grow to 1 GiB"), N_("Grow to 2 GiB"),
+                                          N_("Grow to 4 GiB")};
+    const EnvButton grow_button[] = {EnvButton::grow_1, EnvButton::grow_2, EnvButton::grow_4};
+    for (unsigned i = 0; i < 3; ++i)
+        if (environment_shown(grow_button[i]))
+            label_button(c, ui::env_grow(i), tr(grow_label[i]), 2, running ? muted : cyan);
+    char storage[160];
+    storage_status(storage, sizeof storage);
+    c.text(1000, 782,
+           storage[0] ? std::string_view(storage)
+                      : tr("Growing keeps a backup; Linux must be stopped."),
+           storage[0] ? 2 : 1, storage[0] ? cyan : muted);
+
+    const bool armed = environment_armed_ != EnvButton::none && now_ < environment_armed_until_;
+    if (environment_message_[0])
+        c.text(84, 890, environment_message_.data(), 2,
+               armed                  ? rgb(238, 205, 128)
+               : environment_problem_ ? palette[1]
+                                      : cyan);
+    label_button(
+        c, ui::help_back,
+        pick(tr("Back to Settings (Esc)"), tr("Back to Settings"), tr("Back to Settings (Circle)")),
+        2, cyan);
+    c.text(84, 1056,
+           pick(tr("Tab / arrows: focus   Enter: activate   Esc: back"),
+                tr("Click a control; right-click goes back"),
+                tr("D-pad: focus   Cross: activate   Circle: back   Options: close Settings")),
+           1, muted);
 }
 } // namespace term

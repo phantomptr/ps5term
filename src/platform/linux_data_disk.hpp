@@ -3,9 +3,12 @@
 #include "../../backend/subsystem/embedded_linux.h"
 #include <atomic>
 #include <cstddef>
+#include <cstdint>
 #include <pthread.h>
 namespace term::platform
 {
+// The largest Linux data disk (data.ext2) the app opens or grows to.
+constexpr std::uint64_t data_disk_max_bytes = 4ull * 1024 * 1024 * 1024;
 class LinuxDataDisk
 {
   public:
@@ -17,7 +20,7 @@ class LinuxDataDisk
     LinuxDataDisk(const LinuxDataDisk &) = delete;
     LinuxDataDisk &operator=(const LinuxDataDisk &) = delete;
     // Trusted, already-open parent directory; seed is a regular ext2 image.
-    // Existing sector-aligned ext2 files may be larger than the seed, up to 1 GiB.
+    // Existing sector-aligned ext2 files may be larger than the seed, up to 4 GiB.
     // Never replaces/reinitializes existing data.ext2. Failed initial seeding
     // leaves the partial file for explicit recovery, not silent destruction.
     bool open(int directory_fd, int seed_fd, std::size_t size,

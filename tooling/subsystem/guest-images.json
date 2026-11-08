@@ -24,7 +24,7 @@
     "root-riscv64.bin": {
       "source": "rootfs.ext2",
       "bytes": 16777216,
-      "sha256": "723cb622e9776d186cfdac86b610ff57e8cb2d032a95e19f07d71a5eafe18e9e"
+      "sha256": "40a97ff6ad5ea697f7714ced594680e5119cf6564f3444d148fdb484d37a7c57"
     },
     "data-seed.ext2": {
       "source": "data-seed.ext2",

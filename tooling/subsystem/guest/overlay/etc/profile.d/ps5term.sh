@@ -14,3 +14,17 @@ if grep -q ' /mnt/data ' /proc/mounts 2>/dev/null; then
     # Personal settings that should survive a restart.
     [ -r /mnt/data/profile ] && . /mnt/data/profile
 fi
+# The environment chosen with "ps5term-env default <name>" opens for new interactive shells.
+# exit returns here, to the built-in shell; never nested, never for scripts.
+case $- in
+    *i*)
+        if [ -z "${PS5TERM_ENV:-}" ] && [ -r /mnt/data/.ps5term-env-default ]; then
+            ps5term_default=$(cat /mnt/data/.ps5term-env-default 2>/dev/null)
+            if [ -n "$ps5term_default" ] && [ "$ps5term_default" != base ]; then
+                ps5term-env enter "$ps5term_default" ||
+                    echo "PS5Term: could not open $ps5term_default; this is the built-in Linux shell."
+            fi
+            unset ps5term_default
+        fi
+        ;;
+esac

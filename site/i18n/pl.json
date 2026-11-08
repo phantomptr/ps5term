@@ -41,7 +41,7 @@
   "features.kicker": "Co potrafi",
   "features.lead": "Wszystko działa wewnątrz aplikacji. Nie trzeba wysyłać payloadu, osobnego serwera SSH ani komputera, by z niej korzystać.",
   "features.linux.t1": "RISC-V Linux 6.12 z BusyBox, curl z HTTPS, nano, tmux, htop, jq i less.",
-  "features.linux.t2": "Pliki w <b>/mnt/data</b> zostają między uruchomieniami; dodaj Alpine i jego pakiety <b>apk</b>.",
+  "features.linux.t2": "Pliki w <b>/mnt/data</b> zostają między uruchomieniami; dodaj Alpine lub Ubuntu 24.04 z ich pakietami <b>apk</b> lub <b>apt</b>.",
   "features.linux.t3": "Własne pliki PS5 są w <b>/mnt/ps5</b>. Internet wychodzi przez aplikację; nic nie może połączyć się do środka.",
   "features.linux.title": "Prawdziwa powłoka Linuksa",
   "features.title": "Twoja konsola z wierszem poleceń",

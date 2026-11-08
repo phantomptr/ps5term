@@ -182,41 +182,56 @@ sample image is not shipped. Local corresponding guest source is staged in
 `build/modern-guest-source-delivery`; its companion archive must accompany any
 public image release. This local development package has not been published.
 
-## Persistent Alpine and packages
+## Linux environments and packages
 
-Settings → Expand Linux storage prepares a 512 MiB data disk while Linux is stopped.
-The copy runs in a worker; keep the app open until it finishes. The original disk
-is retained as `/data/ps5term/linux/data.ext2.backup`; an existing backup blocks
-another expansion so it cannot be overwritten. At the next Linux boot, the guest
-checks and expands the ext2 filesystem. A failed check leaves it unmounted.
-The loader accepts disks up to 1 GiB; the Settings action chooses 512 MiB.
+Settings → Linux environments lists Base (the guest's own BusyBox system, always there),
+Alpine 3.23 and Ubuntu 24.04 LTS. Alpine and Ubuntu are official riscv64 root filesystems,
+pinned by URL and SHA-256 in `ps5term-env`, unpacked into `/mnt/data/<name>` and entered
+with `chroot`; the kernel stays PS5Term's. Nothing unverified is unpacked.
 
-Settings → Open Alpine starts Linux and runs the installer on first use. It needs
-outbound HTTPS and at least 64 MiB free. The installer downloads a SHA-256-pinned
-Alpine 3.23.8 RISC-V minirootfs from Alpine's official mirror, then opens its shell.
-When Linux already runs, return its console to a shell prompt before this action.
-The same operations are available over a `linux` SSH session:
+- **Open** (or **Install and open**) starts Linux if needed and opens a new tab running
+  `ps5term-env open <name>`: a first open downloads and unpacks it there, with progress.
+  `exit` ends that tab's shell; Reconnect opens it again.
+- **Make default** chooses where new Linux tabs and `linux@` SSH logins start. Commands sent
+  over SSH (`ssh -p 2222 linux@ps5 'cmd'`) still run in Base, as scripts expect. If the
+  default cannot start, the tab stays in Base with a one-line reason.
+- **Remove...** asks again, then deletes only that environment's folder. It refuses while a
+  shell or SSH session is inside it.
+- **Grow to 1 / 2 / 4 GiB** (Linux stopped) first copies the data disk to
+  `/data/ps5term/linux/data.ext2.backup` in a worker (a later growth replaces that backup),
+  then extends the disk with zeroed space. Keep the app open until it finishes; the PS5
+  needs room for the backup and the larger disk. At the next Linux boot the guest checks and grows the ext2 filesystem; a
+  failed check leaves it unmounted. The loader accepts disks up to 4 GiB.
+
+Alpine needs at least 64 MiB free and is about 10 MiB. Ubuntu needs 384 MiB free: its base
+is 70 MiB, and `apt update` adds about 260 MiB of package lists, so grow the disk to 1 GiB
+first. On the phat (13.60) the Ubuntu download took about a minute, unpacking a minute,
+`apt update` six minutes and `apt install nano curl` six minutes; memory use stayed under
+40 MiB. Everything is emulated, so `apt` is slow; `apk` is much quicker.
+
+The same commands work in any Linux shell or `linux@` SSH session:
 
 ```sh
-ps5term-alpine status
-ps5term-alpine install
-ps5term-alpine enter
-# Inside Alpine:
-apk update
-apk add bash git python3
+ps5term-env list              # every environment, its state and size
+ps5term-env open ubuntu       # install if needed, then enter
+ps5term-env run alpine apk add bash
+ps5term-env default ubuntu    # new shells start here; "base" goes back
+ps5term-env remove alpine
 ```
 
-Or run a command without entering: `ps5term-alpine run apk add bash`.
-Installed packages, `/root`, and changes within `/mnt/data/alpine` persist. The
-Buildroot boot filesystem remains temporary. Alpine's `/mnt/ps5` shows the same
-selected PS5 files as the boot environment. `/proc`, `/sys`, and `/dev` are shared
-with the Linux guest; this chroot uses the guest's kernel and is not an isolation
-boundary. It is not a native PS5 jail, hardware VM, or x86 Linux environment.
+`ps5term-alpine` keeps working as the older name for the Alpine commands. Installed
+packages, `/root`, and changes within `/mnt/data/<name>` persist; the Buildroot boot
+filesystem stays temporary. Each environment's `/mnt/ps5` shows the same selected PS5
+files as Base. `/proc`, `/sys` and `/dev` are shared with the Linux guest; a chroot uses
+the guest's kernel and is not an isolation boundary. It is not a native PS5 jail, hardware
+VM, or x86 Linux environment. Ubuntu 25.10 and later need RISC-V vector support (RVA23),
+which the emulator does not have, so 24.04 LTS is the Ubuntu offered.
 RISC-V packages run through interpretation, so substantial workloads can be slow;
 the guest still has 128 MiB RAM. Never install FreeBSD or x86 packages into it.
 
 Host sanitizer tests cover expansion, installation, HTTPS apk installation, and
-restart persistence. The phat 13.60 also completed Settings-driven expansion and
+restart persistence; `tests/guest/test-ps5term-env.sh` checks `ps5term-env` on riscv64
+Linux (verified install, run, default, in-use refusal, remove, space check). The phat 13.60 also completed Settings-driven expansion and
 Alpine installation, plus apk installation of Bash over SSH and package/home-file persistence across
 Stop/Start. Other firmware and
 console models remain untested.

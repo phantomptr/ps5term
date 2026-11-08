@@ -478,6 +478,15 @@ bool BuiltinShell::path(std::string_view value, std::array<char, 1024> &result,
     return true;
 }
 // ---- Core I/O helpers ----
+void BuiltinShell::program_finished(std::string_view message, int status) noexcept
+{
+    if (state_ != State::program)
+        return;
+    program_taken_ = false;
+    exit_status_ = status;
+    append(message);
+    finish();
+}
 bool BuiltinShell::busy() const noexcept
 {
     return state_ != State::idle || cancelled_ || spill_size_;
@@ -1300,6 +1309,8 @@ void BuiltinShell::execute_command(int argc, char **argv) noexcept
             "  system: pwd cd id uname [-asnrm] hostname whoami date basename dirname\n"
             "          ps [-f] kill [-SIG|-l] PID uptime free [-h] nproc sysinfo sysctl NAME\n"
             "  other:  echo printf sleep env export unset true false clear help\n"
+            "  programs: run PATH [ARGS] runs a PS5 ELF program in this tab (needs an ELF\n"
+            "          loader on port 9021; Ctrl+C interrupts; no TTY, so the size is fixed)\n"
             "Combine: cmd1 | cmd2, cmd1 ; cmd2, cmd1 && cmd2, cmd1 || cmd2\n"
             "Redirect: > file, >> file, < file, 2> file, 2>&1\n"
             "Wildcards: final filename * and ?; quote literal patterns; Linux has full globbing\n"
@@ -1395,6 +1406,61 @@ void BuiltinShell::execute_command(int argc, char **argv) noexcept
                 append({f, 1});
         }
         finish();
+        return;
+    }
+    if (cmd == "run")
+    {
+        if (!programs_enabled_)
+        {
+            diagnostic("run: PS5 programs run in PS5Term's own tabs, not over SSH\n", 1);
+            return;
+        }
+        if (argc < 2)
+        {
+            usage("run PATH [ARGUMENTS]  (a PS5 ELF program, in this tab)");
+            return;
+        }
+        if (piping_ || pipeline_.count > 1 || redir_fd_ >= 0)
+        {
+            diagnostic("run: a program takes the whole tab; no pipes or redirection\n", 2);
+            return;
+        }
+        std::array<char, 1024> program{};
+        struct stat st
+        {
+        };
+        errno = 0;
+        if (!path(argv[1], program) || ::stat(program.data(), &st) != 0)
+        {
+            error(errno ? errno : ENOENT);
+            return;
+        }
+        if (!S_ISREG(st.st_mode))
+        {
+            diagnostic("run: not a program file\n", 126);
+            return;
+        }
+        program_args_size_ = 0;
+        const auto add = [this](std::string_view value)
+        {
+            if (program_args_size_ + value.size() + 1 > program_args_.size())
+                return false;
+            std::memcpy(program_args_.data() + program_args_size_, value.data(), value.size());
+            program_args_size_ += value.size();
+            program_args_[program_args_size_++] = '\0';
+            return true;
+        };
+        bool fits = add(program.data());
+        for (int i = 2; fits && i < argc; ++i)
+            fits = add(argv[i]);
+        if (!fits || argc - 1 > 32)
+        {
+            diagnostic("run: too many or too long arguments\n", 2);
+            return;
+        }
+        --program_args_size_; // No separator after the last argument.
+        program_taken_ = false;
+        state_ = State::program;
         return;
     }
     if (cmd == "sleep")
@@ -2814,6 +2880,8 @@ void BuiltinShell::tick() noexcept
         if (monotonic_ms() >= sleep_until_)
             finish();
         return;
+    case State::program:
+        return; // The tab runs it and calls program_finished().
     case State::copying:
         copy_step();
         return;

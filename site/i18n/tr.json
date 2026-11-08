@@ -41,7 +41,7 @@
   "features.kicker": "Neler yapar",
   "features.lead": "Her şey uygulamanın içinde çalışır. Kullanmak için gönderilecek payload, ayrı bir SSH sunucusu ya da bilgisayar gerekmez.",
   "features.linux.t1": "BusyBox, HTTPS destekli curl, nano, tmux, htop, jq ve less ile RISC-V Linux 6.12.",
-  "features.linux.t2": "<b>/mnt/data</b> içindeki dosyalar açılışlar arasında kalır; Alpine'i ve <b>apk</b> paketlerini ekleyin.",
+  "features.linux.t2": "<b>/mnt/data</b> içindeki dosyalar açılışlar arasında kalır; Alpine'i veya Ubuntu 24.04'ü <b>apk</b> ya da <b>apt</b> paketleriyle ekleyin.",
   "features.linux.t3": "PS5'in kendi dosyaları <b>/mnt/ps5</b> içindedir. İnternet uygulama üzerinden dışarı çıkar; içeri hiçbir şey bağlanamaz.",
   "features.linux.title": "Gerçek bir Linux kabuğu",
   "features.title": "Konsolunuz, bir komut satırıyla",

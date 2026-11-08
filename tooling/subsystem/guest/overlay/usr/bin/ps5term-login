@@ -1,0 +1,3 @@
+#!/bin/sh
+# Local guest console. Native SSH authenticates independently.
+exec /bin/sh -l

@@ -18,7 +18,7 @@ record = {
     'name': 'PS5Term',
     'kind': 'app',
     'category': 'utilities',
-    'description': 'Terminal for jailbroken PS5: a built-in shell, an SSH and SFTP server, and optional Alpine Linux. Works with a controller, keyboard or mouse.',
+    'description': 'Terminal for jailbroken PS5: a built-in shell, SSH and SFTP, optional Alpine or Ubuntu Linux, and PS5 programs. Controller, keyboard or mouse.',
     'license': 'GPL-3.0-or-later',
     'author': 'phantomptr',
     'version': version,

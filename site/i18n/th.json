@@ -41,7 +41,7 @@
   "features.kicker": "ทำอะไรได้บ้าง",
   "features.lead": "ทุกอย่างทำงานในแอป ไม่ต้องส่งเพย์โหลด ไม่ต้องมีเซิร์ฟเวอร์ SSH แยก และไม่ต้องใช้คอมพิวเตอร์",
   "features.linux.t1": "RISC-V Linux 6.12 พร้อม BusyBox, curl ที่รองรับ HTTPS, nano, tmux, htop, jq และ less",
-  "features.linux.t2": "ไฟล์ใน <b>/mnt/data</b> อยู่ต่อแม้เปิดใหม่ เพิ่ม Alpine และแพ็กเกจ <b>apk</b> ของมันได้",
+  "features.linux.t2": "ไฟล์ใน <b>/mnt/data</b> อยู่ต่อแม้เปิดใหม่ เพิ่ม Alpine หรือ Ubuntu 24.04 พร้อมแพ็กเกจ <b>apk</b> หรือ <b>apt</b> ของมันได้",
   "features.linux.t3": "ไฟล์ของ PS5 เองอยู่ที่ <b>/mnt/ps5</b> อินเทอร์เน็ตออกไปผ่านแอป ไม่มีอะไรเชื่อมต่อเข้ามาได้",
   "features.linux.title": "เชลล์ Linux ตัวจริง",
   "features.title": "คอนโซลของคุณ พร้อมบรรทัดคำสั่ง",

@@ -91,6 +91,7 @@ struct AppTest
         keyboard_navigation();
         keyboard_selection_and_tabs();
         subsystem_navigation();
+        environments_page();
         about_page();
         clipboard_controller();
         terminal_search();
@@ -291,16 +292,13 @@ struct AppTest
             app.controller(0x0040, 0x0040);
         }
         assert(app.settings_focus_ == 10);
-        assert(app.focused(ui::alpine_button));
-        app.controller(0x4000, 0x4000);
-        assert(app.settings_open_); // Not bundled in this host fixture.
-        app.controller(0x0040, 0x0040);
-        assert(app.settings_focus_ == 8);
-        assert(app.focused(ui::storage_expand));
-        app.controller(0x4000, 0x4000); // First press only asks for confirmation.
-        assert(app.settings_open_ && app.armed_button_ == ui::SettingsButton::expand_storage);
-        app.controller(0x4000, 0x4000); // Unsupported host profile refuses the operation safely.
-        assert(app.settings_open_);
+        assert(app.focused(ui::environments_button));
+        app.controller(0x4000, 0x4000); // Cross opens the Linux environments screen...
+        assert(app.settings_open_ && app.environments_open_);
+        app.controller(0, 0);
+        app.controller(0x2000, 0x2000); // ...and Circle comes back to Settings.
+        assert(app.settings_open_ && !app.environments_open_ && app.settings_focus_ == 10);
+        app.controller(0, 0);
         app.controller(0x0040, 0x0040); // Language, beside Text size on the same row.
         assert(app.settings_focus_ == 13 && app.focused(ui::language_button));
         assert(i18n::selected() == i18n::automatic);
@@ -325,8 +323,80 @@ struct AppTest
         app.controller(0x4000, 0x4000);
         assert(!app.settings_open_);
         assert(ui::settings_button_at(1400, 670) == ui::SettingsButton::toggle_linux);
-        assert(ui::settings_button_at(1400, 730) == ui::SettingsButton::expand_storage);
+        assert(ui::settings_button_at(800, 730) == ui::SettingsButton::environments);
+        assert(ui::settings_button_at(1400, 730) == ui::SettingsButton::none);
         assert(ui::settings_button_at(300, 730) == ui::SettingsButton::toggle_host_mount);
+    }
+    // Linux environments: focus skips what is not shown, every input acts and goes back, and
+    // removing asks first. This host build has no Linux, so nothing really starts.
+    static void environments_page()
+    {
+        using ui::EnvButton;
+        App app;
+        std::uint64_t now = 10000000;
+        app.key(Key::settings);
+        app.settings_action(ui::SettingsButton::environments);
+        assert(app.environments_open_ && app.environments_focus_ == EnvButton::open_alpine);
+        assert(!app.environments_.known);
+        // Unknown state: only Open and Back (Linux and storage controls need a Linux build).
+        app.key(Key::tab);
+        assert(app.environments_focus_ == EnvButton::open_ubuntu && app.focused(ui::env_open(2)));
+        app.key(Key::tab);
+        assert(app.environments_focus_ == EnvButton::back);
+        app.key(Key::tab);
+        assert(app.environments_focus_ == EnvButton::open_alpine);
+        app.key(Key::backtab);
+        assert(app.environments_focus_ == EnvButton::back);
+        app.controller(0x0040, 0x0040); // D-pad down wraps to the first control.
+        assert(app.environments_focus_ == EnvButton::open_alpine);
+        app.controller(0, 0);
+        app.controller(0x4000, 0x4000); // Cross: Open cannot start Linux here and says so.
+        assert(app.settings_open_ && app.environments_open_ && app.environment_problem_ &&
+               app.environment_message_[0]);
+        app.controller(0, 0);
+        // What the guest reports decides the rest: Ubuntu installed and the default.
+        assert(parse_linux_environments(
+            R"({"default":"ubuntu","data":true,"disk_kib":1000000,"used_kib":400000,"environments":[)"
+            R"({"name":"alpine","state":"absent","kib":0},{"name":"ubuntu","state":"installed","kib":338534}]})",
+            app.environments_));
+        assert(app.environment_shown(EnvButton::remove_ubuntu) &&
+               !app.environment_shown(EnvButton::default_ubuntu) && // already the default
+               app.environment_shown(EnvButton::default_base) &&
+               !app.environment_shown(EnvButton::remove_alpine) &&
+               !app.environment_shown(EnvButton::default_alpine));
+        app.environments_focus_ = EnvButton::open_ubuntu;
+        app.key(Key::right);
+        assert(app.environments_focus_ == EnvButton::remove_ubuntu);
+        app.now_ = now;
+        app.key(Key::enter); // Removing asks again first and changes nothing yet.
+        assert(app.environment_armed_ == EnvButton::remove_ubuntu &&
+               app.environment_job_ == App::EnvironmentJob::none && app.environments_.installed[2]);
+        // Making the current default the default again does nothing.
+        app.environment_action(EnvButton::default_ubuntu);
+        assert(app.environment_job_ == App::EnvironmentJob::none);
+        // Mouse: a click on Back returns to Settings; right-click does too.
+        click(app, ui::help_back.x + 4, ui::help_back.y + 4, now);
+        assert(app.settings_open_ && !app.environments_open_);
+        app.settings_action(ui::SettingsButton::environments);
+        click(app, 900, 600, now, 2);
+        assert(app.settings_open_ && !app.environments_open_);
+        // Keyboard: Esc goes back; Settings closing also closes the screen.
+        app.settings_action(ui::SettingsButton::environments);
+        app.key(Key::escape);
+        assert(app.settings_open_ && !app.environments_open_);
+        app.settings_action(ui::SettingsButton::environments);
+        app.key(Key::settings);
+        assert(!app.settings_open_ && !app.environments_open_);
+        // Every button has its own place and the hit test finds it.
+        for (auto button :
+             {EnvButton::default_base, EnvButton::open_alpine, EnvButton::default_alpine,
+              EnvButton::remove_alpine, EnvButton::open_ubuntu, EnvButton::default_ubuntu,
+              EnvButton::remove_ubuntu, EnvButton::grow_1, EnvButton::grow_2, EnvButton::grow_4,
+              EnvButton::toggle_linux, EnvButton::back})
+        {
+            const auto r = ui::env_button_rect(button);
+            assert(ui::env_button_at(r.x + 2, r.y + 2) == button);
+        }
     }
     // About opens from Settings with every input and always returns to Settings.
     static void about_page()
