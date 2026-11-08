@@ -1,0 +1,5 @@
+config BR2_PACKAGE_PS5TERM_AGENT
+	bool "ps5term-agent"
+	help
+	  Gives SSH sessions independent PTYs inside the guest over a dedicated
+	  virtio console. No sockets or host file access.

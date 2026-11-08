@@ -1,0 +1,23 @@
+#!/bin/sh
+# PS5Term GPL-3.0-or-later. The PS5 files chosen in Settings: /data by default, or /.
+case "$1" in
+ start)
+  # No matching device means an older/non-share build; keep normal boot working.
+  found=no
+  for tag in /sys/bus/virtio/drivers/9pnet_virtio/virtio*/mount_tag; do
+   [ -r "$tag" ] && [ "$(cat "$tag")" = ps5term ] && found=yes
+  done
+  [ "$found" = yes ] || exit 0
+  # The device queue has 16 descriptors. A message over about 14 pages can never be queued, and
+  # the client then waits forever, so msize stays well below that.
+  mkdir -p /mnt/ps5 || exit 1
+  if mount -t 9p -o trans=virtio,version=9p2000.L,msize=32768,cache=none,noxattr,nodev,nosuid,noexec ps5term /mnt/ps5; then
+   echo 'PS5Term: PS5 files are in /mnt/ps5. Choose /data or / in Settings.'
+  else
+   echo 'PS5Term: shared folder mount failed; PS5 files are unavailable.' >&2
+   exit 1
+  fi
+  ;;
+ stop) sync; grep -q ' /mnt/ps5 ' /proc/mounts && umount /mnt/ps5; exit 0 ;;
+ *) echo "Usage: $0 {start|stop}" >&2; exit 1 ;;
+esac

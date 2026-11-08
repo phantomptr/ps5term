@@ -1,0 +1,15 @@
+#!/bin/sh
+# PS5Term GPL-3.0-or-later. Set the guest clock from the app before anything logs
+# or checks a filesystem; the guest has no battery clock and TLS needs real time.
+case "$1" in
+ start)
+  for word in $(cat /proc/cmdline); do
+   case "$word" in
+    ps5term.epoch=*) date -s "@${word#ps5term.epoch=}" >/dev/null 2>&1 ;;
+   esac
+  done
+  ;;
+ stop) ;;
+ *) echo "Usage: $0 {start|stop}" >&2; exit 1 ;;
+esac
+exit 0

@@ -1,0 +1,14 @@
+#!/bin/sh
+# PS5Term GPL-3.0-or-later. udhcpc appends "# eth0" to each resolver line, which
+# BusyBox nslookup reads as part of the address. Keep one comment-free copy.
+case "$1" in
+ bound|renew)
+  conf=/etc/resolv.conf
+  temporary=$(mktemp) || exit 0
+  sed 's/[[:space:]]*#.*$//' "$conf" | awk 'NF && !seen[$0]++' > "$temporary"
+  # resolv.conf may be a symlink into /tmp, so write through it.
+  cat "$temporary" > "$conf"
+  rm -f "$temporary"
+  ;;
+esac
+exit 0

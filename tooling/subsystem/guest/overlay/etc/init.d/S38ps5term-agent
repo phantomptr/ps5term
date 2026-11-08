@@ -1,0 +1,20 @@
+#!/bin/sh
+# PS5Term GPL-3.0-or-later. Serves SSH-to-Linux sessions over the dedicated console.
+case "$1" in
+ start)
+  # /dev/hvc1 exists even without the device, so give up after a few quick failures
+  # rather than retrying for the whole boot. A crash later still gets a restart.
+  (
+   failures=0
+   while [ "$failures" -lt 5 ]; do
+    started=$(date +%s)
+    /usr/sbin/ps5term-agent --device /dev/hvc1
+    [ $(($(date +%s) - started)) -gt 10 ] && failures=0 || failures=$((failures + 1))
+    sleep 1
+   done
+  ) </dev/null >/dev/null 2>&1 &
+  ;;
+ stop) ;;
+ *) echo "Usage: $0 {start|stop}" >&2; exit 1 ;;
+esac
+exit 0

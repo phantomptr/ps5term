@@ -1,0 +1,10 @@
+--- a/wolfcrypt/src/wc_port.c
++++ b/wolfcrypt/src/wc_port.c
+@@ -6111,7 +6111,7 @@
+        (defined(__ANDROID_API__) && (__ANDROID_API__ >= 21)))))
+     #define WC_HAVE_ACCEPT4
+-#elif defined(__FreeBSD__) && defined(__BSD_VISIBLE) && __BSD_VISIBLE && \
++#elif defined(__FreeBSD__) && !defined(PS5TERM_OWNED_SSH_NATIVE) && defined(__BSD_VISIBLE) && __BSD_VISIBLE && \
+     (__FreeBSD_version >= 1000000)
+     #define WC_HAVE_ACCEPT4
+ #endif

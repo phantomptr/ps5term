@@ -1,0 +1,173 @@
+--- a/src/wolfsftp.c
++++ b/src/wolfsftp.c
+@@ -44,6 +44,25 @@
+ /* for WLOCALTIME if defined */
+ #include <wolfssl/wolfcrypt/wc_port.h>
+ 
++#ifndef USE_WINDOWS_API
++#include <errno.h>
++
++/* Map the errno of a failed filesystem call to an SFTP status, so a missing
++ * path is reported as NO_SUCH_FILE and a denied one as PERMISSION_DENIED
++ * instead of a generic FAILURE. Clients such as libssh2 treat FAILURE as a
++ * hard error when probing for files that do not exist. */
++static byte SFTP_ErrnoToStatus(int err)
++{
++    if (err == ENOENT || err == ENOTDIR)
++        return WOLFSSH_FTP_NOFILE;
++    if (err == EACCES || err == EPERM)
++        return WOLFSSH_FTP_PERMISSION;
++    return WOLFSSH_FTP_FAILURE;
++}
++#else
++    #define SFTP_ErrnoToStatus(e) ((void)(e), WOLFSSH_FTP_FAILURE)
++#endif
++
+ 
+ /* enum for bit field with an ID of each of the state structures */
+ enum WS_SFTP_STATE_ID {
+@@ -2142,7 +2161,9 @@
+     char err[] = "Remove Directory Error";
+     char suc[] = "Removed Directory";
+     char per[] = "Permission denied";
++    char nsf[] = "No such file";
+     char* res  = NULL;
++    int  sysErr = 0;
+ 
+     if (ssh == NULL) {
+         return WS_BAD_ARGUMENT;
+@@ -2159,6 +2180,8 @@
+     if (ret == 0) {
+     #ifndef USE_WINDOWS_API
+         ret = WRMDIR(ssh->fs, dir);
++        if (ret != 0)
++            sysErr = errno;
+     #else /* USE_WINDOWS_API */
+         ret = WS_RemoveDirectoryA(dir, ssh->ctx->heap) == 0;
+     #endif /* USE_WINDOWS_API */
+@@ -2171,7 +2194,11 @@
+     }
+     else {
+         res  = (ret != 0)? err : suc;
+-        type = (ret != 0)? WOLFSSH_FTP_FAILURE : WOLFSSH_FTP_OK;
++        type = (ret != 0)? SFTP_ErrnoToStatus(sysErr) : WOLFSSH_FTP_OK;
++        if (type == WOLFSSH_FTP_NOFILE)
++            res = nsf;
++        else if (type == WOLFSSH_FTP_PERMISSION)
++            res = per;
+         if (ret != 0) {
+             WLOG(WS_LOG_SFTP, "Error removing directory %s", dir);
+             ret  = WS_BAD_FILE_E;
+@@ -2459,6 +2486,8 @@
+     char  naf[] = "Not A File";
+     char  per[] = "Permission denied";
+     char  tmf[] = "Too Many Open File Handles";
++    char  nsf[] = "No such file";
++    byte  openStatus = WOLFSSH_FTP_FAILURE;
+     int handleStored = 0;
+ 
+     if (ssh == NULL) {
+@@ -2588,9 +2617,11 @@
+         fd = WOPEN(ssh->fs, dir, m, WOLFSSH_SFTP_SAFE_MODE(atr.per));
+     #endif
+         if (fd < 0) {
++            openStatus = SFTP_ErrnoToStatus(errno);
+             WLOG(WS_LOG_SFTP, "Error opening file %s", dir);
+-            res = oer;
+-            if (wolfSSH_SFTP_CreateStatus(ssh, WOLFSSH_FTP_FAILURE, reqId, res,
++            res = openStatus == WOLFSSH_FTP_NOFILE ? nsf :
++                  openStatus == WOLFSSH_FTP_PERMISSION ? per : oer;
++            if (wolfSSH_SFTP_CreateStatus(ssh, openStatus, reqId, res,
+                     "English", NULL, &outSz) != WS_SIZE_ONLY) {
+                 ret = WS_FATAL_ERROR;
+                 goto cleanup;
+@@ -2638,7 +2669,7 @@
+         }
+     }
+     else {
+-        if (wolfSSH_SFTP_CreateStatus(ssh, WOLFSSH_FTP_FAILURE, reqId, res,
++        if (wolfSSH_SFTP_CreateStatus(ssh, openStatus, reqId, res,
+                 "English", out, &outSz) != WS_SUCCESS) {
+             ret = WS_FATAL_ERROR;
+             goto cleanup;
+@@ -4974,7 +5005,9 @@
+     char  suc[] = "Removed File";
+     char  err[] = "Remove File Error";
+     char  per[] = "Permission denied";
++    char  nsf[] = "No such file";
+     char* res   = suc;
++    int   sysErr = 0;
+ 
+     if (ssh == NULL) {
+         return WS_BAD_ARGUMENT;
+@@ -4998,6 +5031,7 @@
+         if (WS_DeleteFileA(name, ssh->ctx->heap) == 0)
+     #endif /* USE_WINDOWS_API */
+         {
++            sysErr = errno;
+             WLOG(WS_LOG_SFTP, "Error removing file");
+         #if defined(WOLFSSL_NUCLEUS) && defined(DEBUG_WOLFSSH)
+             if (ret == NUF_ACCES)
+@@ -5023,8 +5057,9 @@
+         ret  = WS_BAD_FILE_E;
+     }
+     else if (ret != WS_SUCCESS) {
+-        res  = err;
+-        type = WOLFSSH_FTP_FAILURE;
++        type = SFTP_ErrnoToStatus(sysErr);
++        res  = type == WOLFSSH_FTP_NOFILE ? nsf :
++               type == WOLFSSH_FTP_PERMISSION ? per : err;
+     }
+ 
+     /* keep the operation result on success; on a send failure propagate it so
+@@ -6014,6 +6049,7 @@
+ 
+     char  per[] = "Permission denied";
+     char  ser[] = "STAT error";
++    char  nsf[] = "No such file";
+     char* statusMsg  = ser;
+     byte  statusType = WOLFSSH_FTP_FAILURE;
+ 
+@@ -6047,9 +6083,14 @@
+         WMEMSET((byte*)&atr, 0, sizeof(WS_SFTP_FILEATRB));
+         if (SFTP_GetAttributes(ssh->fs, name, &atr, 0, ssh->ctx->heap)
+             != WS_SUCCESS) {
++            statusType = SFTP_ErrnoToStatus(errno);
++            if (statusType == WOLFSSH_FTP_NOFILE)
++                statusMsg = nsf;
++            else if (statusType == WOLFSSH_FTP_PERMISSION)
++                statusMsg = per;
+             WLOG(WS_LOG_SFTP, "Unable to get stat of file/directory");
+-            if (wolfSSH_SFTP_CreateStatus(ssh, WOLFSSH_FTP_FAILURE, reqId,
+-                    ser, "English", NULL, &outSz) != WS_SIZE_ONLY) {
++            if (wolfSSH_SFTP_CreateStatus(ssh, statusType, reqId,
++                    statusMsg, "English", NULL, &outSz) != WS_SIZE_ONLY) {
+                 return WS_FATAL_ERROR;
+             }
+             ret = WS_BAD_FILE_E;
+@@ -6106,6 +6147,7 @@
+ 
+     char  per[] = "Permission denied";
+     char  ser[] = "LSTAT error";
++    char  nsf[] = "No such file";
+     char* statusMsg  = ser;
+     byte  statusType = WOLFSSH_FTP_FAILURE;
+ 
+@@ -6140,10 +6182,15 @@
+         WMEMSET((byte*)&atr, 0, sizeof(WS_SFTP_FILEATRB));
+         if ((ret = SFTP_GetAttributes(ssh->fs, name, &atr, 1, ssh->ctx->heap))
+                 != WS_SUCCESS) {
++            statusType = SFTP_ErrnoToStatus(errno);
++            if (statusType == WOLFSSH_FTP_NOFILE)
++                statusMsg = nsf;
++            else if (statusType == WOLFSSH_FTP_PERMISSION)
++                statusMsg = per;
+             /* tell peer that was not ok */
+             WLOG(WS_LOG_SFTP, "Unable to get lstat of file/directory");
+-            if (wolfSSH_SFTP_CreateStatus(ssh, WOLFSSH_FTP_FAILURE, reqId,
+-                    ser, "English", NULL, &outSz) != WS_SIZE_ONLY) {
++            if (wolfSSH_SFTP_CreateStatus(ssh, statusType, reqId,
++                    statusMsg, "English", NULL, &outSz) != WS_SIZE_ONLY) {
+                 return WS_FATAL_ERROR;
+             }
+             ret = WS_BAD_FILE_E;

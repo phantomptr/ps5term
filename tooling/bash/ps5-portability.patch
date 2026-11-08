@@ -1,0 +1,60 @@
+--- a/externs.h
++++ b/externs.h
+@@ -217,7 +217,7 @@
+ 
+ /* Declarations for functions defined in lib/sh/dprintf.c */
+ #if !defined (HAVE_DPRINTF)
+-extern void dprintf (int, const char *, ...)  __attribute__((__format__ (printf, 2, 3)));
++extern int dprintf (int, const char *, ...)  __attribute__((__format__ (printf, 2, 3)));
+ #endif
+ 
+ /* Declarations for functions defined in lib/sh/fmtulong.c */
+--- a/builtins/printf.def
++++ b/builtins/printf.def
+@@ -355,7 +355,9 @@
+ 
+   garglist = orig_arglist = list->next;
+ 
++#if defined (HANDLE_MULTIBYTE)
+   mb_cur_max = MB_CUR_MAX;
++#endif
+ 
+   /* Basic algorithm is to scan the format string for conversion
+      specifications -- once one is found, find out if the field
+--- a/include/shmbutil.h
++++ b/include/shmbutil.h
+@@ -26,6 +26,8 @@
+ /* Include config.h for HANDLE_MULTIBYTE */
+ #include <config.h>
+ 
++extern int locale_utf8locale;
++
+ #if defined (HANDLE_MULTIBYTE)
+ #include "shmbchar.h"
+ 
+@@ -38,7 +40,6 @@
+ extern char *xstrchr (const char *, int);
+ 
+ extern int locale_mb_cur_max;	/* XXX */
+-extern int locale_utf8locale;	/* XXX */
+ 
+ #ifndef MB_INVALIDCH
+ #define MB_INVALIDCH(x)		((x) == (size_t)-1 || (x) == (size_t)-2)
+--- a/general.c
++++ b/general.c
+@@ -657,10 +657,15 @@
+ 
+   if (tty_fd < 0)
+     {
++#if defined (PS5TERM_BASH_PORT)
++      /* The SDK has no ttyname. This noninteractive port has no tty fallback. */
++      return;
++#else
+       tty = (char *)ttyname (fileno (stdin));
+       if (tty == 0)
+ 	return;
+       tty_fd = open (tty, O_RDWR|O_NONBLOCK);
++#endif
+     }
+   if (tty_fd >= 0)
+     close (tty_fd);

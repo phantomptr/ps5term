@@ -1,0 +1,56 @@
+#!/bin/sh
+# PS5Term guest data volume. Never format or mount a failed filesystem.
+case "$1" in
+    start)
+        [ -b /dev/vdb ] || exit 0
+        if ! command -v e2fsck >/dev/null 2>&1; then
+            echo 'PS5Term: data disk unavailable: e2fsck is missing.'
+            exit 1
+        fi
+        e2fsck -p /dev/vdb
+        result=$?
+        case "$result" in
+            0|1)
+                # Compare geometry before resizing: an unchanged disk needs no resize.
+                # resize2fs requires a forced check after prior use, even when fsck -p
+                # calls the filesystem clean.
+                set -- $(LC_ALL=C dumpe2fs -h /dev/vdb 2>/dev/null | awk '
+                    /^Block count:/ {count=$3} /^Block size:/ {size=$3}
+                    END {if (count && size) print count, size}')
+                sectors=$(cat /sys/class/block/vdb/size)
+                if [ "$#" -ne 2 ] || [ -z "$sectors" ]; then
+                    echo 'PS5Term: cannot determine data geometry; left unmounted.'
+                    exit 1
+                fi
+                if [ "$(( $1 * $2 / 512 ))" -lt "$sectors" ]; then
+                    e2fsck -p -f /dev/vdb
+                    case "$?" in 0|1) ;; *) echo 'PS5Term: pre-resize check failed.'; exit 1 ;; esac
+                    if ! resize2fs /dev/vdb; then
+                        echo 'PS5Term: data expansion failed; left unmounted. Native backup retained.'
+                        exit 1
+                    fi
+                    e2fsck -p /dev/vdb
+                    case "$?" in 0|1) ;; *) echo 'PS5Term: expanded disk check failed.'; exit 1 ;; esac
+                fi
+                mkdir -p /mnt/data
+                if mount -t ext2 -o nodev,nosuid /dev/vdb /mnt/data; then
+                    # A closed app gets no clean stop: bound what the page cache can lose.
+                    echo 100 >/proc/sys/vm/dirty_expire_centisecs
+                    echo 100 >/proc/sys/vm/dirty_writeback_centisecs
+                    echo 'PS5Term: persistent files available in /mnt/data; root remains temporary.'
+                else
+                    rmdir /mnt/data 2>/dev/null # Never leave a look-alike on the temporary root.
+                    echo 'PS5Term: data disk mount failed; persistent files unavailable.'
+                    exit 1
+                fi
+                ;;
+            *) echo 'PS5Term: data disk check failed; left unmounted for recovery.'; exit 1 ;;
+        esac
+        ;;
+    stop)
+        sync
+        if grep -q ' /mnt/data ' /proc/mounts; then umount /mnt/data; fi
+        ;;
+    restart) "$0" stop && "$0" start ;;
+    *) echo "Usage: $0 {start|stop|restart}" >&2; exit 1 ;;
+esac

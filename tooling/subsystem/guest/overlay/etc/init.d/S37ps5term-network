@@ -1,0 +1,17 @@
+#!/bin/sh
+# PS5Term GPL-3.0-or-later. Optional in-app IPv4 NAT: configure eth0 by DHCP.
+# Older or offline builds have no eth0; keep normal boot working without it.
+case "$1" in
+ start)
+  [ -d /sys/class/net/eth0 ] || exit 0
+  # The virtual DHCP server answers at once, so a short wait is enough; the
+  # client keeps trying in the background rather than delaying boot.
+  if udhcpc -i eth0 -b -q -t 1 -T 1 -A 5 -S -p /var/run/udhcpc.eth0.pid >/dev/null 2>&1; then
+   echo 'PS5Term: eth0 uses in-app NAT (10.0.2.0/24); no inbound connections.'
+  else
+   echo 'PS5Term: eth0 DHCP failed; network unavailable.' >&2
+  fi
+  ;;
+ stop) [ -f /var/run/udhcpc.eth0.pid ] && kill "$(cat /var/run/udhcpc.eth0.pid)" 2>/dev/null; exit 0 ;;
+ *) echo "Usage: $0 {start|stop}" >&2; exit 1 ;;
+esac

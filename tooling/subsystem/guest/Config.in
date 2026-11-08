@@ -1,0 +1,1 @@
+source "$BR2_EXTERNAL_PS5TERM_PATH/package/ps5term-agent/Config.in"

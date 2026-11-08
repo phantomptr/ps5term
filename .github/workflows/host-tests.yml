@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Host tests
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  host:
+    runs-on: ubuntu-24.04
+    env:
+      HOST_CXX: clang++-18
+      HOST_CC: clang-18
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install host compilers
+        run: sudo apt-get update && sudo apt-get install -y clang-18
+      - name: Run all host suites (no console access)
+        run: make test
+      - name: Run Linux guest PTY agent acceptance with sanitizers
+        run: bash tools/test-guest-agent.sh
+  owned-ssh:
+    runs-on: ubuntu-24.04
+    env:
+      HOST_CXX: clang++-18
+      HOST_CC: clang-18
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install host tools
+        run: sudo apt-get update && sudo apt-get install -y clang-18 python3-venv openssl openssh-client
+      - name: Fetch verified source archives without preparing legacy payloads
+        run: python3 tools/prepare-ssh.py --archives-only
+      - name: Build owned server fixture
+        run: python3 tools/build-owned-ssh-host.py
+      - name: Run loopback SSH interoperability checks (no console access)
+        run: |
+          python3 -m venv build/owned-ssh-test-venv
+          build/owned-ssh-test-venv/bin/pip install paramiko==4.0.0
+          build/owned-ssh-test-venv/bin/python tests/ssh/test_owned_server.py
+          build/owned-ssh-test-venv/bin/python tests/ssh/test_owned_service.py
+          build/owned-ssh-test-venv/bin/python tests/ssh/test_owned_sftp.py
+          # Explicitly skips when the runner's OpenSSH lacks ML-KEM (9.9+).
+          python3 tests/ssh/test_owned_pq.py
+  guest-images:
+    runs-on: ubuntu-24.04
+    env:
+      HOST_CXX: clang++-18
+      HOST_CC: clang-18
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install host compilers
+        run: sudo apt-get update && sudo apt-get install -y clang-18
+      - name: Fetch pinned interpreter sources
+        run: python3 -c 'from tools.dev.embedded_linux import prepare; prepare(True)'
+      - name: Build the interpreter with sanitizers and run lifecycle tests
+        run: python3 -m tools.dev.build_embedded_runtime --sanitize --output build/ci-runtime
+      - name: Boot the bundled guest (no console or Internet access)
+        run: |
+          python3 -m tools.dev.test_modern_guest --runtime build/ci-runtime --images assets/linux --output build/ci-modern
+          python3 -m tools.dev.test_network_guest --runtime build/ci-runtime --images assets/linux --output build/ci-network
+          python3 -m tools.dev.test_guest_bridge --runtime build/ci-runtime --images assets/linux --output build/ci-bridge
+          python3 -m tools.dev.test_shared_guest --runtime build/ci-runtime --images assets/linux --output build/ci-shared
+      - name: Fetch hash-pinned Alpine archive and test persistent packages offline
+        run: |
+          mkdir -p build/alpine
+          curl --fail --location --proto '=https' https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/riscv64/alpine-minirootfs-3.23.8-riscv64.tar.gz -o build/alpine/alpine-minirootfs-3.23.8-riscv64.tar.gz
+          python3 -m tools.dev.test_large_guest --runtime build/ci-runtime --network build/ci-network --images assets/linux --archive-directory build/alpine --output build/ci-large

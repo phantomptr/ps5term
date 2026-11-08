@@ -1,0 +1,3 @@
+auto lo
+iface lo inet loopback
+# eth0 is configured by S37ps5term-network when the optional NAT device exists.

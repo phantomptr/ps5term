@@ -1,0 +1,226 @@
+--- a/src/wolfsftp.c
++++ b/src/wolfsftp.c
+@@ -1401,15 +1401,40 @@
+  * returns WS_SUCCESS on success
+  */
+ static int SFTP_ServerSendInit(WOLFSSH* ssh) {
+-    int  ret;
+-    byte buf[LENGTH_SZ + MSG_ID_SZ + UINT32_SZ];
++#ifndef USE_WINDOWS_API
++    /* advertised extensions as name/version string pairs */
++    static const char* const exts[] = {
++        "statvfs@openssh.com", "2",
++        "fstatvfs@openssh.com", "2"
++    };
++#endif
++    int    ret;
++    byte   buf[LENGTH_SZ + MSG_ID_SZ + UINT32_SZ + 128];
++    word32 idx = LENGTH_SZ + MSG_ID_SZ + UINT32_SZ;
++
++#ifndef USE_WINDOWS_API
++    {
++        word32 i;
+ 
+-    c32toa(MSG_ID_SZ + UINT32_SZ, buf);
++        for (i = 0; i < sizeof(exts) / sizeof(exts[0]); i++) {
++            word32 len = (word32)WSTRLEN(exts[i]);
++
++            if (idx + UINT32_SZ + len > sizeof(buf)) {
++                return WS_BUFFER_E;
++            }
++            c32toa(len, buf + idx);
++            WMEMCPY(buf + idx + UINT32_SZ, exts[i], len);
++            idx += UINT32_SZ + len;
++        }
++    }
++#endif
++
++    c32toa(idx - LENGTH_SZ, buf);
+     buf[LENGTH_SZ] = WOLFSSH_FTP_VERSION;
+ 
+     /* version */
+     c32toa((word32)WOLFSSH_SFTP_VERSION, buf + LENGTH_SZ + MSG_ID_SZ);
+-    if ((ret = wolfSSH_stream_send(ssh, buf, sizeof(buf))) != sizeof(buf)) {
++    if ((ret = wolfSSH_stream_send(ssh, buf, idx)) != (int)idx) {
+         return ret;
+     }
+     return WS_SUCCESS;
+@@ -1680,6 +1705,11 @@
+ }
+ 
+ 
++#ifndef USE_WINDOWS_API
++static int SFTP_RecvExtended(WOLFSSH* ssh, int reqId, byte* data,
++        word32 maxSz);
++#endif
++
+ /* Look for incoming packet and handle it
+  *
+  * returns WS_SUCCESS on success
+@@ -1859,6 +1889,14 @@
+                     break;
+             #endif
+ 
++            #ifndef USE_WINDOWS_API
++                case WOLFSSH_FTP_EXTENDED:
++                    ret = SFTP_RecvExtended(ssh, state->reqId,
++                            wolfSSH_SFTP_buffer_data(&state->buffer),
++                            wolfSSH_SFTP_buffer_size(&state->buffer));
++                    break;
++            #endif
++
+                 default:
+                     WLOG(WS_LOG_SFTP, "Unknown packet type [%d] received",
+                             state->type);
+@@ -6128,6 +6166,151 @@
+ }
+ 
+ 
++#ifndef USE_WINDOWS_API
++/* Handles receiving an extended request. Supports statvfs@openssh.com and
++ * fstatvfs@openssh.com (so clients can show free space, e.g. "df" in the
++ * OpenSSH sftp client); anything else is answered with OP_UNSUPPORTED.
++ * returns WS_SUCCESS on success
++ */
++static int SFTP_RecvExtended(WOLFSSH* ssh, int reqId, byte* data,
++        word32 maxSz)
++{
++    static const char statvfsExt[]  = "statvfs@openssh.com";
++    static const char fstatvfsExt[] = "fstatvfs@openssh.com";
++    uint64_t vfs[SFTPIO_STATVFS_FIELDS];
++    char  name[WOLFSSH_MAX_FILENAME];
++    int   ret = WS_SUCCESS;
++    int   haveStats = 0;
++    int   i;
++
++    word32 extSz;
++    const byte* ext;
++    word32 sz;
++    const byte* str;
++    word32 idx = 0;
++
++    byte*  out = NULL;
++    word32 outSz = 0;
++
++    char  per[] = "Permission denied";
++    char  nsf[] = "No such file";
++    char  ser[] = "STATVFS error";
++    char  bhd[] = "Invalid handle";
++    char  uns[] = "Unsupported extended request";
++    char* statusMsg  = ser;
++    byte  statusType = WOLFSSH_FTP_FAILURE;
++
++    if (ssh == NULL) {
++        return WS_BAD_ARGUMENT;
++    }
++
++    WLOG(WS_LOG_SFTP, "Receiving WOLFSSH_FTP_EXTENDED");
++
++    if (GetStringRef(&extSz, &ext, data, maxSz, &idx) != WS_SUCCESS) {
++        return WS_BUFFER_E;
++    }
++
++    if (extSz == sizeof(statvfsExt) - 1 &&
++            WMEMCMP(ext, statvfsExt, extSz) == 0) {
++        if (GetStringRef(&sz, &str, data, maxSz, &idx) != WS_SUCCESS) {
++            return WS_BUFFER_E;
++        }
++        ret = GetAndCleanPath(ssh, str, sz, name, sizeof(name));
++        if (ret < 0) {
++            if (ret == WS_PERMISSIONS) {
++                statusType = WOLFSSH_FTP_PERMISSION;
++                statusMsg  = per;
++            }
++            ret = WS_BAD_FILE_E;
++        }
++        else if (sftpio_statvfs(name, -1, vfs) != 0) {
++            statusType = SFTP_ErrnoToStatus(errno);
++            if (statusType == WOLFSSH_FTP_NOFILE)
++                statusMsg = nsf;
++            else if (statusType == WOLFSSH_FTP_PERMISSION)
++                statusMsg = per;
++            WLOG(WS_LOG_SFTP, "Unable to get statvfs of %s", name);
++            ret = WS_BAD_FILE_E;
++        }
++        else {
++            haveStats = 1;
++        }
++    }
++    else if (extSz == sizeof(fstatvfsExt) - 1 &&
++            WMEMCMP(ext, fstatvfsExt, extSz) == 0) {
++        WS_FILE_LIST* cur = NULL;
++
++        if (GetStringRef(&sz, &str, data, maxSz, &idx) != WS_SUCCESS) {
++            return WS_BUFFER_E;
++        }
++        if (sz == WOLFSSH_HANDLE_ID_SZ) {
++            word32 handleId[2] = {0, 0};
++
++            SFTP_HandleIdDecode(str, handleId);
++            cur = SFTP_FindFileHandle(ssh, handleId);
++        }
++        if (cur == NULL) {
++            WLOG(WS_LOG_SFTP, "Unknown handle");
++            statusMsg = bhd;
++            ret = WS_BAD_FILE_E;
++        }
++        else if (sftpio_statvfs(NULL, cur->fd, vfs) != 0) {
++            statusType = SFTP_ErrnoToStatus(errno);
++            if (statusType == WOLFSSH_FTP_PERMISSION)
++                statusMsg = per;
++            WLOG(WS_LOG_SFTP, "Unable to get fstatvfs of handle");
++            ret = WS_BAD_FILE_E;
++        }
++        else {
++            haveStats = 1;
++        }
++    }
++    else {
++        WLOG(WS_LOG_SFTP, "Unsupported extended request");
++        statusType = WOLFSSH_FTP_UNSUPPORTED;
++        statusMsg  = uns;
++    }
++
++    if (haveStats) {
++        sz = SFTPIO_STATVFS_FIELDS * 8;
++        outSz = sz + WOLFSSH_SFTP_HEADER;
++    }
++    else if (wolfSSH_SFTP_CreateStatus(ssh, statusType, reqId, statusMsg,
++                "English", NULL, &outSz) != WS_SIZE_ONLY) {
++        return WS_FATAL_ERROR;
++    }
++
++    out = (byte*)WMALLOC(outSz, ssh->ctx->heap, DYNTYPE_BUFFER);
++    if (out == NULL) {
++        return WS_MEMORY_E;
++    }
++
++    if (haveStats) {
++        if (SFTP_SetHeader(ssh, reqId, WOLFSSH_FTP_EXTENDED_REPLY, sz, out)
++                != WS_SUCCESS) {
++            WFREE(out, ssh->ctx->heap, DYNTYPE_BUFFER);
++            return WS_FATAL_ERROR;
++        }
++        idx = WOLFSSH_SFTP_HEADER;
++        for (i = 0; i < SFTPIO_STATVFS_FIELDS; i++) {
++            c32toa((word32)(vfs[i] >> 32), out + idx);
++            c32toa((word32)vfs[i], out + idx + UINT32_SZ);
++            idx += 8;
++        }
++    }
++    else if (wolfSSH_SFTP_CreateStatus(ssh, statusType, reqId, statusMsg,
++                "English", out, &outSz) != WS_SUCCESS) {
++        WFREE(out, ssh->ctx->heap, DYNTYPE_BUFFER);
++        return WS_FATAL_ERROR;
++    }
++
++    /* set send out buffer, "out" is taken by ssh  */
++    wolfSSH_SFTP_RecvSetSend(ssh, out, outSz);
++    return ret;
++}
++#endif /* !USE_WINDOWS_API */
++
++
+ /* Handles receiving lstat packet
+  * returns WS_SUCCESS on success
+  */

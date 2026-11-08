@@ -1,0 +1,65 @@
+--- a/wolfssh/port.h
++++ b/wolfssh/port.h
+@@ -709,7 +709,11 @@
+ #endif
+ 
+ /* get local time for debug print out */
+-#if defined(USE_WINDOWS_API) || defined(__MINGW32__)
++#if defined(PS5TERM_OWNED_SSH_NATIVE)
++    /* Native libc has no localtime_r. Omit the cosmetic long-name date;
++     * protocol attributes still carry the unmodified numeric timestamps. */
++    #define WTIME time
++#elif defined(USE_WINDOWS_API) || defined(__MINGW32__)
+     #define WTIME time
+     #define WLOCALTIME(c,r) (localtime_s((r),(c))==0)
+ #elif defined(MICROCHIP_MPLAB_HARMONY)
+@@ -1612,7 +1625,10 @@
+     #define WSTAT_T      struct stat
+     #define WRMDIR(fs,d) rmdir((d))
+     #define WSTAT(fs,p,b)   stat((p),(b))
+-    #ifndef USE_OSE_API
++    #if defined(PS5TERM_OWNED_SSH_NATIVE)
++        #include "native_sftp_stat.h"
++        #define WLSTAT(fs,p,b) ps5term_sftp_lstat((p),(b))
++    #elif !defined(USE_OSE_API)
+         #define WLSTAT(fs,p,b) lstat((p),(b))
+     #else
+         #define WLSTAT(fs,p,b) stat((p),(b))
+@@ -1653,6 +1653,15 @@
+ 
+ #ifndef NO_WOLFSSH_DIR
+     #include <dirent.h> /* used for opendir, readdir, and closedir */
++    #if defined(PS5TERM_OWNED_SSH_NATIVE)
++        #include "native_sftp_directory.h"
++        #define WDIR struct ps5term_sftp_directory*
++        #define WOPENDIR(fs,h,c,d) ((*(c) = ps5term_sftp_opendir((d))) == NULL)
++        #define WFDOPENDIR(fs,d,fd) ((*(d) = ps5term_sftp_fdopendir((fd))) == NULL)
++        #define WCLOSEDIR(fs,d) ps5term_sftp_closedir(*(d))
++        #define WREADDIR(fs,d) ps5term_sftp_readdir(*(d))
++        #define WREWINDDIR(fs,d) ps5term_sftp_rewinddir(*(d))
++    #else
+     #define WDIR DIR*
+ 
+     /* returns 0 on success */
+@@ -1661,6 +1670,7 @@
+     #define WCLOSEDIR(fs,d)  closedir(*(d))
+     #define WREADDIR(fs,d)   readdir(*(d))
+     #define WREWINDDIR(fs,d) rewinddir(*(d))
++    #endif
+ #endif /* NO_WOLFSSH_DIR */
+ #endif
+ 
+--- a/src/wolfsftp.c
++++ b/src/wolfsftp.c
+@@ -4663,9 +4663,9 @@
+         if (GetUint32(&strSz, data, maxSz, &idx) != WS_SUCCESS) {
+             return WS_BUFFER_E;
+         }
+-        /* Bound strSz to the maximum SFTP read/write payload size. */
++        /* PS5Term: a short read is valid SFTP; refusing ended the session. */
+         if (strSz > WOLFSSH_MAX_SFTP_RW) {
+-            return WS_BUFFER_E;
++            strSz = WOLFSSH_MAX_SFTP_RW;
+         }
+ 
+         /* read from handle and send data back to client */

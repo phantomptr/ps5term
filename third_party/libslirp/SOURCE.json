@@ -1,0 +1,10 @@
+{
+  "name": "libslirp",
+  "version": "4.9.7",
+  "license": "BSD-3-Clause",
+  "repository": "https://qemu.googlesource.com/libslirp",
+  "commit": "ce12dcddf710a71dc0de6450ec95edbadf8e9f66",
+  "archive": "libslirp-4.9.7.tar.gz",
+  "sha256": "6b19073be7764feabfaa55543b4567577b1a004dae7bbfc405a384f36fedaf3c",
+  "note": "Kept here because the repository's generated archives are not byte-stable, so a download could not be verified. The profile applied at build time is tools/dev/prepare_slirp.py."
+}

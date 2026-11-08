@@ -1,0 +1,111 @@
+{
+  "schema": 1,
+  "candidate_only": true,
+  "host_boot_verified": true,
+  "ps5_runtime_verified": true,
+  "network": true,
+  "host_share": true,
+  "disk_persistence": true,
+  "ram_mib": 128,
+  "heap_limit_mib": 160,
+  "images": {
+    "bbl64.bin": {
+      "source": "fw_jump.bin",
+      "bytes": 273464,
+      "sha256": "9b74ad1e600ec7f123f20a15b825f1b8863db2870f21f90bc70899346b5bd76e",
+      "load_address": "0x80000000"
+    },
+    "kernel-riscv64.bin": {
+      "source": "Image",
+      "bytes": 13270016,
+      "sha256": "9d248d184968d316636c759727178bafdc8f91c4123c2a998f56a9dbb66de8aa",
+      "load_address": "0x80200000"
+    },
+    "root-riscv64.bin": {
+      "source": "rootfs.ext2",
+      "bytes": 16777216,
+      "sha256": "723cb622e9776d186cfdac86b610ff57e8cb2d032a95e19f07d71a5eafe18e9e"
+    },
+    "data-seed.ext2": {
+      "source": "data-seed.ext2",
+      "bytes": 16777216,
+      "sha256": "6f7f8e4bedc3cd0a5bdedf268fa6eb7e8c78073345e2413fe5608f14b102e6ac"
+    }
+  },
+  "shared_folder": {
+    "profile": "PS5TERM_LINUX_SHARED_FOLDER",
+    "host_verified": true,
+    "ps5_verified": true,
+    "mount": "/mnt/ps5",
+    "native_directory": "/data by default; / by user choice",
+    "flat_directory": false,
+    "root_is_temporary": true,
+    "network": true,
+    "firmware_tested": [
+      "13.60"
+    ],
+    "console_tested": "phat",
+    "choice_file": "/data/ps5term/linux/host-mount",
+    "hidden": [
+      "ps5term/ssh",
+      "ps5term/linux"
+    ],
+    "regular_files_only": true
+  },
+  "persistent_data_disk": {
+    "profile": "PS5TERM_LINUX_PERSISTENCE",
+    "host_verified": true,
+    "ps5_verified": true,
+    "mount": "/mnt/data",
+    "native_file": "/data/ps5term/linux/data.ext2",
+    "size_mib": 16,
+    "fsck": "e2fsprogs 1.47.2",
+    "root_is_temporary": true,
+    "firmware_tested": [
+      "13.60"
+    ],
+    "console_tested": "phat"
+  },
+  "network_backend": {
+    "profile": "PS5TERM_LINUX_NETWORK",
+    "library": "libslirp 4.9.7 private profile",
+    "archive_sha256": "6b19073be7764feabfaa55543b4567577b1a004dae7bbfc405a384f36fedaf3c",
+    "guest_address": "10.0.2.15/24 by DHCP",
+    "gateway": "10.0.2.2",
+    "dns_proxy": "10.0.2.3",
+    "upstream_dns_default": "1.1.1.1",
+    "upstream_dns_override": "/data/ps5term/linux/resolver",
+    "inbound_forwarding": false,
+    "host_loopback": false,
+    "ipv6": false,
+    "host_verified": true,
+    "ps5_verified": true,
+    "firmware_tested": [
+      "13.60"
+    ],
+    "console_tested": "phat"
+  },
+  "expanded_storage": {
+    "host_verified": true,
+    "ps5_verified": true,
+    "maximum_mib": 1024,
+    "settings_target_mib": 512,
+    "original_backup": "data.ext2.backup",
+    "firmware_tested": [
+      "13.60"
+    ],
+    "console_tested": "phat"
+  },
+  "alpine": {
+    "version": "3.23.8",
+    "architecture": "riscv64",
+    "host_verified": true,
+    "ps5_verified": true,
+    "archive_sha256": "8d811b1aff11a6e40433c219142e06496a4f92dd06d86eefca58f62602ce3f24",
+    "install_on_demand": true,
+    "firmware_tested": [
+      "13.60"
+    ],
+    "console_tested": "phat"
+  }
+}

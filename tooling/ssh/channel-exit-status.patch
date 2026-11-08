@@ -1,0 +1,67 @@
+--- a/wolfssh/ssh.h
++++ b/wolfssh/ssh.h
+@@ -435,6 +435,11 @@
+  *
+  * A peer that never answers leaves the channel on the list for the life of
+  * the session; there is no reclaim short of wolfSSH_free(). */
++/* PS5Term extension: send this channel's exit status once. A short write
++ * retains the packet; retrying does not queue a second status. Call before
++ * ChannelExit; WS_SUCCESS means bundled, not necessarily flushed. */
++WOLFSSH_API int wolfSSH_ChannelSendExitStatus(WOLFSSH_CHANNEL* channel,
++        word32 status);
+ WOLFSSH_API int wolfSSH_ChannelExit(WOLFSSH_CHANNEL* channel);
+ /* Sends SSH_MSG_CHANNEL_EOF, closing the sending direction and leaving the
+  * receiving direction open (the half-close of RFC 4254 section 5.3). Data
+--- a/wolfssh/internal.h
++++ b/wolfssh/internal.h
+@@ -1468,6 +1468,7 @@
+     byte closeTxd : 1;
+     byte eofRxd : 1;
+     byte eofTxd : 1;
++    byte exitStatusTxd : 1; /* PS5Term: status already bundled */
+     byte openConfirmed : 1;
+     byte ptyReq : 1; /* flag for if interactive pty request was received */
+     byte fwdSetupTxd : 1; /* a LOCAL_SETUP succeeded, a cleanup is owed */
+--- a/src/internal.c
++++ b/src/internal.c
+@@ -23258,6 +23258,8 @@
+         channel = ChannelFind(ssh, peerChannelId, WS_CHANNEL_ID_PEER);
+         if (channel == NULL)
+             ret = WS_INVALID_CHANID;
++        else if (channel->exitStatusTxd)
++            return WS_SUCCESS;
+     }
+ 
+     if (ret == WS_SUCCESS) {
+@@ -23284,6 +23286,8 @@
+         ssh->outputBuffer.length = idx;
+ 
+         ret = BundlePacket(ssh);
++        if (ret == WS_SUCCESS)
++            channel->exitStatusTxd = 1;
+     }
+ 
+     if (ret == WS_SUCCESS)
+--- a/src/ssh.c
++++ b/src/ssh.c
+@@ -5448,6 +5448,20 @@
+ }
+ 
+ 
++int wolfSSH_ChannelSendExitStatus(WOLFSSH_CHANNEL* channel, word32 status)
++{
++    if (channel == NULL || channel->ssh == NULL)
++        return WS_BAD_ARGUMENT;
++    if (SendAfterDisconnect(channel->ssh))
++        return WS_FATAL_ERROR;
++    if (!channel->openConfirmed)
++        return WS_CHANNEL_NOT_CONF;
++    if (channel->ssh->isKeying)
++        return WS_REKEYING;
++    return SendChannelExit(channel->ssh, channel->peerChannel, (int)status);
++}
++
++
+ int wolfSSH_ChannelExit(WOLFSSH_CHANNEL* channel)
+ {
+     int ret = WS_SUCCESS;

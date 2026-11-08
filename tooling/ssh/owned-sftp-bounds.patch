@@ -1,0 +1,63 @@
+--- a/src/wolfsftp.c
++++ b/src/wolfsftp.c
+@@ -4039,18 +4039,34 @@
+     if (!cur->isEof) {
+         do {
+             name = wolfSSH_SFTPNAME_new(ssh->ctx->heap);
++            if (name == NULL) {
++                wolfSSH_SFTPNAME_list_free(list);
++                return WS_MEMORY_E;
++            }
+             ret = wolfSSH_SFTPNAME_readdir(ssh, dir, name, dirName);
+             if (ret == WS_SUCCESS || ret == WS_NEXT_ERROR) {
+                 count++;
+-                outSz += name->fSz + name->lSz + (UINT32_SZ * 2);
+-                outSz += SFTP_AttributesSz(ssh, &name->atrb);
++                word32 entrySz = name->fSz + name->lSz + (UINT32_SZ * 2) +
++                    SFTP_AttributesSz(ssh, &name->atrb);
++                if (entrySz > WOLFSSH_MAX_SFTP_NAME ||
++                    outSz > WOLFSSH_MAX_SFTP_NAME - entrySz) {
++                    wolfSSH_SFTPNAME_free(name);
++                    wolfSSH_SFTPNAME_list_free(list);
++                    return WS_BUFFER_E;
++                }
++                outSz += entrySz;
+                 name->next = list;
+                 list = name;
+             }
+             else {
+                 wolfSSH_SFTPNAME_free(name);
+-            }
+-        } while (ret == WS_SUCCESS);
++                if (ret == WS_MEMORY_E) {
++                    wolfSSH_SFTPNAME_list_free(list);
++                    return ret;
++                }
++            }
++        /* PS5Term: retain the cursor and return at most 32 entries per page. */
++        } while (ret == WS_SUCCESS && count < 32);
+     }
+ 
+     if (list == NULL || cur->isEof) {
+@@ -4075,17 +4091,18 @@
+         return WS_SUCCESS;
+     }
+ 
+-    /* if next state would cause an error then set EOF flag for when called
+-     * again */
+-    cur->isEof = 1;
++    /* A full page is not EOF; continue on the next READDIR request. */
++    cur->isEof = (ret != WS_SUCCESS);
+     out = (byte*)WMALLOC(outSz, ssh->ctx->heap, DYNTYPE_BUFFER);
+     if (out == NULL) {
++        wolfSSH_SFTPNAME_list_free(list);
+         return WS_MEMORY_E;
+     }
+ 
+     if (wolfSSH_SFTP_SendName(ssh, list, count, out, &outSz, reqId)
+             != WS_SUCCESS) {
+         WFREE(out, ssh->ctx->heap, DYNTYPE_BUFFER);
++        wolfSSH_SFTPNAME_list_free(list);
+         return WS_FATAL_ERROR;
+     }
+     wolfSSH_SFTPNAME_list_free(list);

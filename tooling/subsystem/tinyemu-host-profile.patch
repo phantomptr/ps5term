@@ -1,0 +1,70 @@
+--- a/Makefile
++++ b/Makefile
+@@ -47,6 +47,7 @@
+ CC=$(CROSS_PREFIX)gcc
+ STRIP=$(CROSS_PREFIX)strip
+ CFLAGS=-O2 -Wall -g -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -MMD
++CFLAGS+=-DPS5TERM_NO_HOST_DEVICES
+ CFLAGS+=-D_GNU_SOURCE -DCONFIG_VERSION=\"$(shell cat VERSION)\"
+ LDFLAGS=
+ 
+@@ -71,7 +72,7 @@
+ endif
+ 
+ ifndef CONFIG_WIN32
+-EMU_OBJS+=fs_disk.o
++# Host filesystem sharing disabled for the PS5Term reference spike.
+ EMU_LIBS=-lrt
+ endif
+ ifdef CONFIG_FS_NET
+--- a/cutils.h
++++ b/cutils.h
+@@ -90,6 +90,8 @@
+     return ((v & 0xff000000) >> 24) | ((v & 0x00ff0000) >>  8) |
+         ((v & 0x0000ff00) <<  8) | ((v & 0x000000ff) << 24);
+ }
++#elif defined(__APPLE__) || defined(PS5TERM_TINYEMU_BUILTIN_BSWAP)
++#define bswap_32 __builtin_bswap32
+ #else
+ #include <byteswap.h>
+ #endif
+--- a/temu.c
++++ b/temu.c
+@@ -35,8 +35,10 @@
+ #ifndef _WIN32
+ #include <termios.h>
+ #include <sys/ioctl.h>
++#if !defined(PS5TERM_NO_HOST_DEVICES)
+ #include <net/if.h>
+ #include <linux/if_tun.h>
++#endif
+ #endif
+ #include <sys/stat.h>
+ #include <signal.h>
+@@ -346,7 +348,7 @@
+     return bs;
+ }
+ 
+-#ifndef _WIN32
++#if !defined(_WIN32) && !defined(PS5TERM_NO_HOST_DEVICES)
+ 
+ typedef struct {
+     int fd;
+@@ -763,7 +765,7 @@
+         } else
+ #endif
+         {
+-#ifdef _WIN32
++#if defined(_WIN32) || defined(PS5TERM_NO_HOST_DEVICES)
+             fprintf(stderr, "Filesystem access not supported yet\n");
+             exit(1);
+ #else
+@@ -788,7 +790,7 @@
+                 exit(1);
+         } else
+ #endif
+-#ifndef _WIN32
++#if !defined(_WIN32) && !defined(PS5TERM_NO_HOST_DEVICES)
+         if (!strcmp(p->tab_eth[i].driver, "tap")) {
+             p->tab_eth[i].net = tun_open(p->tab_eth[i].ifname);
+             if (!p->tab_eth[i].net)
