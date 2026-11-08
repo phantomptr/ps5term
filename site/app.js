@@ -137,7 +137,11 @@ async function showRelease() {
     if (!res.ok) return;
     const release = await res.json();
     const zip = (release.assets || []).find((a) => a.name.endsWith(".zip"));
-    if (zip) document.getElementById("hero-download").href = zip.browser_download_url;
+    if (zip)
+      for (const id of ["hero-download", "guide-download"]) {
+        const link = document.getElementById(id);
+        if (link) link.href = zip.browser_download_url;
+      }
     document.getElementById("hero-version").textContent = t("hero.version", "Version {tag} · free and open source", {
       tag: release.tag_name,
     });

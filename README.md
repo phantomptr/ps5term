@@ -78,11 +78,17 @@ Host-rendered previews of the actual app scene (not console screenshots):
 
 Website: **[ps5term.phantomptr.com](https://ps5term.phantomptr.com/)**.
 
-Download `PS5Term-<version>.zip` from the
+**From ProsperoStore (easiest):** open [ProsperoStore](https://prosperostore.net/) on the PS5,
+find **PS5Term** under Utilities and install it. New versions show up there as updates.
+
+**By hand:** download `PS5Term-<version>.zip` from the
 [Releases page](https://github.com/phantomptr/ps5term/releases), copy the complete
-`FAKE99260` folder to `/data/homebrew/FAKE99260` on the console, and launch it with your
-homebrew launcher. A compatible jailbreak and native app loader are required. The app
-owns its SSH/SFTP server and needs no separately sent payload or ELF loader.
+`FAKE99260` folder to `/data/homebrew/FAKE99260` on the console (for example with
+[PS5Upload](https://ps5upload.phantomptr.com/)), and launch it with your homebrew launcher.
+
+Either way a compatible jailbreak and native app loader are required. The app owns its
+SSH/SFTP server and needs no separately sent payload or ELF loader. Updating keeps your
+settings, SSH password and Linux files (they live in `/data/ps5term`).
 
 ## Quick start
 
