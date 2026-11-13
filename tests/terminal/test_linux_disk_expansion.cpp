@@ -54,8 +54,9 @@ int main()
     assert(stat(backup.c_str(), &info) == 0 && info.st_size == 16 * 1024 * 1024);
     fd = open(disk.c_str(), O_RDWR);
     assert(pread(fd, value, 8, 4096) == 8 && std::string(value, 8) == "retained");
-    // The new space is really written (not a hole), so a full drive fails at growth time.
-    assert(fstat(fd, &info) == 0 && info.st_blocks * 512 >= 48 * 1024 * 1024);
+    // The new space (16 to 48 MiB) is really written, not a hole, so a full drive fails at
+    // growth time. (The test's own first 16 MiB came from ftruncate and may be a hole.)
+    assert(fstat(fd, &info) == 0 && info.st_blocks * 512 >= 32 * 1024 * 1024);
     // Once the guest has resized the filesystem to the file, the next growth replaces the
     // older backup with a copy of the current disk.
     super[4] = 0x00;

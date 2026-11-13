@@ -1,10 +1,10 @@
 // PS5Term - GPL-3.0-or-later. Linux guest via TinyEMU RISC-V emulation.
 #pragma once
 #include <array>
+#include <cerrno>
 #include "guest_agent.hpp"
 #if defined(PS5TERM_LINUX_PERSISTENCE)
 #include "linux_data_disk.hpp"
-#include <cerrno>
 #include <cstdio>
 #include <cstring>
 #include <sys/stat.h>
