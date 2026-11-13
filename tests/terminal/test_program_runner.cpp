@@ -74,10 +74,10 @@ int main()
         tab.tick(5);
         assert(tab.connection.submit("cd /tmp"));
         tab.tick(5);
-        assert(tab.connection.submit(("run " + launcher + " \"two words\" x").c_str()));
+        assert(tab.connection.submit(("run " + launcher + " \"two words\" x \"\"").c_str()));
         assert(tab.wait_for("name?"));
         assert(tab.connection.running_program() && !tab.connection.native());
-        assert(loader.received_arguments == launcher + "|two words|x|");
+        assert(loader.received_arguments == launcher + "|two words|x||"); // the empty last one too
         assert(access((terminfo + "/x/xterm-256color").c_str(), R_OK) == 0);
         // Another user (the payload) must read both; seen on the console with 0600.
         struct stat info
@@ -128,6 +128,35 @@ int main()
         assert(!tab.connection.running_program());
         assert(tab.connection.submit("echo still here"));
         assert(tab.wait_for("still here"));
+    }
+    // A loader that takes the launcher but never runs it: Ctrl+C gives the tab back at once,
+    // and meanwhile a second tab is told to wait instead of overwriting the first's request.
+    {
+        unsigned port = 0;
+        const int silent = listen_any(port);
+        Tab tab, other;
+        term::platform::ProgramRunner::Config config;
+        config.request_path = request.c_str();
+        config.launcher_path = launcher.c_str();
+        config.terminfo_directory = terminfo.c_str();
+        config.loader_port = port;
+        config.connect_timeout_ms = 60000;
+        tab.connection.configure_programs(config);
+        other.connection.configure_programs(config);
+        tab.tick(5);
+        other.tick(5);
+        assert(tab.connection.submit(("run " + launcher).c_str()));
+        tab.tick(20);
+        assert(tab.connection.running_program());
+        assert(other.connection.submit(("run " + launcher).c_str()));
+        assert(other.wait_for("another tab is starting a program"));
+        assert(tab.connection.interrupt());
+        assert(tab.wait_for("run: cancelled"));
+        assert(!tab.connection.running_program());
+        assert(tab.connection.submit("echo free again"));
+        assert(tab.wait_for("free again"));
+        close(silent);
+        unlink(request.c_str());
     }
     // Missing program: the shell says so without trying.
     {

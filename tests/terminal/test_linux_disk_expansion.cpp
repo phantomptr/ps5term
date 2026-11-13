@@ -45,15 +45,29 @@ int main()
     fd = open(disk.c_str(), O_RDONLY);
     assert(pread(fd, value, 8, 4096) == 8 && std::string(value, 8) == "retained");
     close(fd);
-    // A second expansion replaces the older backup with a copy of the current disk.
+    // Growing again before the guest finished the last growth (the filesystem is still
+    // smaller than the file) keeps the existing backup: it is the last copy known good.
     assert(job.start(path, 48));
     wait(job);
-    assert(job.error() == 0);
+    assert(job.error() == 0 && job.progress() == 100);
     assert(stat(disk.c_str(), &info) == 0 && info.st_size == 48 * 1024 * 1024);
-    assert(stat(backup.c_str(), &info) == 0 && info.st_size == 32 * 1024 * 1024);
-    fd = open(disk.c_str(), O_RDONLY);
+    assert(stat(backup.c_str(), &info) == 0 && info.st_size == 16 * 1024 * 1024);
+    fd = open(disk.c_str(), O_RDWR);
     assert(pread(fd, value, 8, 4096) == 8 && std::string(value, 8) == "retained");
+    // The new space is really written (not a hole), so a full drive fails at growth time.
+    assert(fstat(fd, &info) == 0 && info.st_blocks * 512 >= 48 * 1024 * 1024);
+    // Once the guest has resized the filesystem to the file, the next growth replaces the
+    // older backup with a copy of the current disk.
+    super[4] = 0x00;
+    super[5] = 0xc0; // 49152 blocks of 1 KiB = 48 MiB
+    assert(pwrite(fd, super, sizeof(super), 1024) == sizeof(super));
     close(fd);
+    assert(job.start(path, 56));
+    wait(job);
+    assert(job.error() == 0);
+    assert(stat(disk.c_str(), &info) == 0 && info.st_size == 56 * 1024 * 1024);
+    assert(stat(backup.c_str(), &info) == 0 && info.st_size == 48 * 1024 * 1024);
+    assert(truncate(disk.c_str(), 48 * 1024 * 1024) == 0); // back to a resized 48 MiB disk
     assert(unlink(backup.c_str()) == 0);
     fd = open(disk.c_str(), O_RDWR);
     assert(fd >= 0);

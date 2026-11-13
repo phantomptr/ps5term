@@ -1458,7 +1458,6 @@ void BuiltinShell::execute_command(int argc, char **argv) noexcept
             diagnostic("run: too many or too long arguments\n", 2);
             return;
         }
-        --program_args_size_; // No separator after the last argument.
         program_taken_ = false;
         state_ = State::program;
         return;

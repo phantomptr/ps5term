@@ -588,6 +588,10 @@ void App::tick(std::uint64_t now) noexcept
             }
         }
     }
+    // Once Linux runs, the guest has grown the filesystem: "start Linux to finish" is done.
+    if (storage_requested_ && !connection_.storage_busy() && !connection_.storage_error() &&
+        connection_.environment() == Connection::Environment::linux_guest)
+        storage_requested_ = false;
     tick_environments();
     // Keep a scrolled-back view on the same lines while new output arrives.
     if (const auto end = model().history_end(); end != seen_history_end_)
@@ -3263,7 +3267,8 @@ constexpr EnvButton environment_order[] = {
     EnvButton::toggle_linux,   EnvButton::default_base,  EnvButton::open_alpine,
     EnvButton::default_alpine, EnvButton::remove_alpine, EnvButton::open_ubuntu,
     EnvButton::default_ubuntu, EnvButton::remove_ubuntu, EnvButton::grow_1,
-    EnvButton::grow_2,         EnvButton::grow_4,        EnvButton::back};
+    EnvButton::grow_2,         EnvButton::grow_4,        EnvButton::delete_backup,
+    EnvButton::delete_disk,    EnvButton::back};
 constexpr unsigned grow_mib[] = {1024, 2048, 4096};
 struct EnvironmentButton
 {
@@ -3325,8 +3330,15 @@ void App::storage_status(char *out, std::size_t size) const noexcept
         i18n::format(out, size, trc("%u MiB ready; start Linux to finish filesystem growth"),
                      connection_.storage_mib());
 }
+void App::refresh_storage_sizes() noexcept
+{
+    storage_disk_mib_ = connection_.storage_mib();
+    storage_backup_mib_ = connection_.storage_backup_mib();
+    storage_checked_at_ = now_;
+}
 void App::open_environments() noexcept
 {
+    refresh_storage_sizes();
     environments_open_ = true;
     environments_focus_ = EnvButton::open_alpine;
     environments_refresh_ = true;
@@ -3352,12 +3364,15 @@ bool App::environment_shown(EnvButton button) const noexcept
     case EnvironmentButton::remove:
         return environments_.known && environments_.installed[info.environment];
     case EnvironmentButton::grow:
-        return platform::LinuxSubsystem::persistence_available() &&
-               connection_.storage_mib() != 0 &&
-               connection_.storage_mib() < grow_mib[info.grow_index];
+        return platform::LinuxSubsystem::persistence_available() && storage_disk_mib_ != 0 &&
+               storage_disk_mib_ < grow_mib[info.grow_index];
     case EnvironmentButton::other:
         break;
     }
+    if (button == EnvButton::delete_backup)
+        return storage_backup_mib_ != 0 && !connection_.storage_busy();
+    if (button == EnvButton::delete_disk)
+        return storage_disk_mib_ != 0 && !connection_.storage_busy();
     return button != EnvButton::toggle_linux || Connection::linux_available();
 }
 void App::move_environment_focus(int direction) noexcept
@@ -3452,13 +3467,22 @@ bool App::open_environment_tab(LinuxEnvironment environment) noexcept
 }
 bool App::start_environment_job(EnvironmentJob job, const char *command) noexcept
 {
-    if (environment_job_ != EnvironmentJob::none)
+    auto &agent = connection_.guest_agent();
+    if (environment_job_ == EnvironmentJob::change ||
+        (environment_job_ != EnvironmentJob::none && job != EnvironmentJob::change))
     {
         if (job == EnvironmentJob::change)
             environment_say(trc("Wait for the current change to finish"), true);
         return false;
     }
-    auto &agent = connection_.guest_agent();
+    if (environment_job_ != EnvironmentJob::none)
+    {
+        // A background refresh never makes the user wait: drop it; it runs again afterwards.
+        agent.close(environment_handle_);
+        environment_job_ = EnvironmentJob::none;
+        environment_handle_ = 0;
+        environments_refresh_ = true;
+    }
     const int handle = agent.alive() ? agent.open(80, 24, "dumb", command, false) : 0;
     if (!handle)
     {
@@ -3474,6 +3498,11 @@ bool App::start_environment_job(EnvironmentJob job, const char *command) noexcep
     environment_job_ = job;
     environment_handle_ = handle;
     environment_output_size_ = 0;
+    // Generous for an emulated CPU (removing Ubuntu deletes thousands of files), but never
+    // for ever: a guest that stops answering must not hold a session slot.
+    environment_job_deadline_ = now_ + (job == EnvironmentJob::change  ? 1800000000ULL
+                                        : job == EnvironmentJob::sizes ? 300000000ULL
+                                                                       : 60000000ULL);
     return true;
 }
 void App::finish_environment_job(int status) noexcept
@@ -3521,6 +3550,11 @@ void App::finish_environment_job(int status) noexcept
 }
 void App::tick_environments() noexcept
 {
+    if (environments_open_ && now_ - storage_checked_at_ >= 1000000)
+        refresh_storage_sizes();
+    // Its button went away (made default, removed, grown, deleted): focus must stay visible.
+    if (environments_open_ && !environment_shown(environments_focus_))
+        move_environment_focus(1);
     auto &agent = connection_.guest_agent();
     const bool running = connection_.environment() == Connection::Environment::linux_guest &&
                          !connection_.failed() && agent.alive();
@@ -3529,6 +3563,8 @@ void App::tick_environments() noexcept
         // Stopping Linux ends every agent session; nothing is known until it runs again.
         if (environment_job_ != EnvironmentJob::none)
         {
+            // The session is gone, but its slot is ours until closed.
+            agent.close(environment_handle_);
             environment_job_ = EnvironmentJob::none;
             environment_handle_ = 0;
         }
@@ -3552,6 +3588,12 @@ void App::tick_environments() noexcept
         {
             agent.close(environment_handle_);
             finish_environment_job(state == platform::GuestAgent::State::gone ? -1 : status);
+        }
+        else if (now_ >= environment_job_deadline_)
+        {
+            agent.close(environment_handle_);
+            environment_output_size_ = 0;
+            finish_environment_job(-1);
         }
         return;
     }
@@ -3626,6 +3668,12 @@ void App::environment_action(EnvButton button) noexcept
             close_settings();
             return;
         }
+        if (environment_job_ == EnvironmentJob::change)
+        {
+            // Never open an environment while it may be the one being removed.
+            environment_say(trc("Wait for the current change to finish"), true);
+            return;
+        }
         if (open_environment_tab(static_cast<LinuxEnvironment>(info.environment)))
             close_settings();
         return;
@@ -3681,10 +3729,55 @@ void App::environment_action(EnvButton button) noexcept
     case EnvironmentButton::other:
         break;
     }
-    if (button == EnvButton::back)
+    if (button == EnvButton::delete_backup)
+    {
+        i18n::format(line, sizeof line,
+                     trc("Press again to delete the backup of the Linux disk (%u MiB)"),
+                     storage_backup_mib_);
+        if (!confirm(line))
+            return;
+        if (const int error = connection_.delete_linux_backup())
+        {
+            i18n::format(line, sizeof line, trc("Cannot delete it (error %d)"), error);
+            environment_say(line, true);
+        }
+        else
+            environment_say(trc("Backup deleted"));
+        refresh_storage_sizes();
+        move_environment_focus(1);
+    }
+    else if (button == EnvButton::delete_disk)
+    {
+        if (running)
+        {
+            environment_say(trc("Stop Linux first to delete its disk"), true);
+            return;
+        }
+        if (!confirm(trc("Press again to delete the Linux disk: every environment and all files "
+                         "in /mnt/data are lost")))
+            return;
+        if (const int error = connection_.delete_linux_storage())
+        {
+            i18n::format(line, sizeof line, trc("Cannot delete it (error %d)"), error);
+            environment_say(line, true);
+        }
+        else
+        {
+            storage_requested_ = false;
+            environment_say(trc("Linux disk deleted. Starting Linux makes a new, empty one."));
+        }
+        refresh_storage_sizes();
+        move_environment_focus(1);
+    }
+    else if (button == EnvButton::back)
         environments_open_ = false;
     else if (button == EnvButton::toggle_linux)
     {
+        if (!running && connection_.storage_busy())
+        {
+            environment_say(trc("Wait for the Linux disk to finish growing"), true);
+            return;
+        }
         if (running && !confirm(trc("Press Stop Linux again to stop: Linux shells and linux@ SSH "
                                     "sessions end.")))
             return;
@@ -3759,9 +3852,9 @@ void App::draw_environments(ps5::demo::Canvas &c) noexcept
             label_button(c, ui::env_remove(i), tr("Remove..."), 2, palette[1]);
     }
 
-    c.rectangle(64, 666, 1792, 190, surface);
+    c.rectangle(64, 666, 1792, 208, surface);
     c.text(96, 686, tr("STORAGE"), 2, text);
-    unsigned disk = connection_.storage_mib();
+    unsigned disk = storage_disk_mib_;
     if (!disk && environments_.known)
         disk = static_cast<unsigned>(environments_.disk_kib / 1024);
     if (environments_.known && environments_.disk_kib)
@@ -3783,6 +3876,14 @@ void App::draw_environments(ps5::demo::Canvas &c) noexcept
     for (unsigned i = 0; i < 3; ++i)
         if (environment_shown(grow_button[i]))
             label_button(c, ui::env_grow(i), tr(grow_label[i]), 2, running ? muted : cyan);
+    if (environment_shown(EnvButton::delete_backup))
+    {
+        i18n::format(line, sizeof line, trc("Delete backup (%u MiB)"), storage_backup_mib_);
+        label_button(c, ui::env_delete_backup, line, 2, palette[1]);
+    }
+    if (environment_shown(EnvButton::delete_disk))
+        label_button(c, ui::env_delete_disk, tr("Delete Linux disk..."), 2,
+                     running ? muted : palette[1]);
     char storage[160];
     storage_status(storage, sizeof storage);
     c.text(1000, 782,
@@ -3792,7 +3893,7 @@ void App::draw_environments(ps5::demo::Canvas &c) noexcept
 
     const bool armed = environment_armed_ != EnvButton::none && now_ < environment_armed_until_;
     if (environment_message_[0])
-        c.text(84, 890, environment_message_.data(), 2,
+        c.text(84, 900, environment_message_.data(), 2,
                armed                  ? rgb(238, 205, 128)
                : environment_problem_ ? palette[1]
                                       : cyan);

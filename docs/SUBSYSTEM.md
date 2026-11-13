@@ -198,10 +198,18 @@ with `chroot`; the kernel stays PS5Term's. Nothing unverified is unpacked.
 - **Remove...** asks again, then deletes only that environment's folder. It refuses while a
   shell or SSH session is inside it.
 - **Grow to 1 / 2 / 4 GiB** (Linux stopped) first copies the data disk to
-  `/data/ps5term/linux/data.ext2.backup` in a worker (a later growth replaces that backup),
-  then extends the disk with zeroed space. Keep the app open until it finishes; the PS5
-  needs room for the backup and the larger disk. At the next Linux boot the guest checks and grows the ext2 filesystem; a
-  failed check leaves it unmounted. The loader accepts disks up to 4 GiB.
+  `/data/ps5term/linux/data.ext2.backup` in a worker, then writes the new space as zeroes, so
+  a PS5 drive without room fails the growth cleanly and the disk stays as it was. Keep the app
+  open until it finishes; the PS5 needs room for the backup and the larger disk. A later
+  growth replaces the backup, unless the previous growth never finished inside Linux: then
+  the existing backup is kept as the last good copy. At the next Linux boot the guest checks
+  and grows the ext2 filesystem; a failed check leaves it unmounted. The loader accepts disks
+  up to 4 GiB.
+- **Delete backup** frees the backup's space at any time. **Delete Linux disk...** (Linux
+  stopped, asks again) deletes the disk itself and its backup: every environment and all files in
+  `/mnt/data`. The next Linux start makes a new 16 MiB disk. Use it before uninstalling
+  PS5Term: the PS5 keeps `/data/ps5term` after an uninstall, and other tools usually cannot
+  delete these owner-only files.
 
 Alpine needs at least 64 MiB free and is about 10 MiB. Ubuntu needs 384 MiB free: its base
 is 70 MiB, and `apt update` adds about 260 MiB of package lists, so grow the disk to 1 GiB

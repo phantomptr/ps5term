@@ -95,6 +95,12 @@ Either way a compatible jailbreak and native app loader are required. The app ow
 SSH/SFTP server and needs no separately sent payload or ELF loader. Updating keeps your
 settings, SSH password and Linux files (they live in `/data/ps5term`).
 
+**Uninstalling:** the PS5 keeps `/data/ps5term` when the app is removed, and the Linux disk
+there can be several GiB. Before uninstalling, open Settings → Linux environments and storage,
+stop Linux and choose **Delete Linux disk...** (and **Delete backup** if shown). Already
+uninstalled? Install PS5Term again, delete the disk the same way, then uninstall. What is left
+afterwards is a few small files (settings and SSH keys).
+
 ## Quick start
 
 1. Open PS5Term. The built-in shell is ready; type `help`.

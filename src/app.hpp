@@ -218,7 +218,7 @@ class App
     EnvironmentJob environment_job_ = EnvironmentJob::none;
     int environment_handle_ = 0;
     bool environments_refresh_ = false, environment_sizes_known_ = false;
-    std::uint64_t environment_retry_at_ = 0;
+    std::uint64_t environment_retry_at_ = 0, environment_job_deadline_ = 0;
     std::array<char, 2048> environment_output_{};
     std::size_t environment_output_size_ = 0;
     std::array<char, 200> environment_message_{};
@@ -226,6 +226,11 @@ class App
     ui::EnvButton environment_armed_ = ui::EnvButton::none;
     std::uint64_t environment_armed_until_ = 0;
     unsigned environment_change_ = 0; // EnvButton of the running change
+    // The disk's and its backup's sizes, read once a second while the screen is open
+    // (drawing must not stat files every frame).
+    unsigned storage_disk_mib_ = 0, storage_backup_mib_ = 0;
+    std::uint64_t storage_checked_at_ = 0;
+    void refresh_storage_sizes() noexcept;
     void open_environments() noexcept;
     void storage_status(char *out, std::size_t size) const noexcept; // Empty when idle.
     void draw_environments(ps5::demo::Canvas &canvas) noexcept;

@@ -16,6 +16,8 @@
   "chips.lang.title": "Kendi dilinde",
   "chips.native.text": "PS5'in kendi dosyalarında ls, cat, cp, grep, sha256sum, ps, sysinfo ve daha fazlası.",
   "chips.native.title": "Yerel kabuk",
+  "chips.run.text": "<b>run</b>, ELF yükleyiciniz aracılığıyla sekmede bir PS5 ELF programı başlatır; ncurses menüleri dahil.",
+  "chips.run.title": "PS5 programları",
   "chips.search.text": "Çıktıda metin bulun, seçin ve geri yapıştırın.",
   "chips.search.title": "Arama ve kopyalama",
   "chips.ssh.text": "Bilgisayarınızdan parolayla ya da kendi anahtarınızla giriş yapın.",

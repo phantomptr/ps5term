@@ -16,6 +16,8 @@
   "chips.lang.title": "あなたの言語で",
   "chips.native.text": "ls、cat、cp、grep、sha256sum、ps、sysinfo などで、PS5 自身のファイルを扱えます。",
   "chips.native.title": "ネイティブシェル",
+  "chips.run.text": "<b>run</b> で、ELF ローダーを通じて PS5 の ELF プログラムをタブ内で起動できます。ncurses のメニューにも対応しています。",
+  "chips.run.title": "PS5 プログラム",
   "chips.search.text": "出力の中の文字を検索し、選択して貼り付け直せます。",
   "chips.search.title": "検索とコピー",
   "chips.ssh.text": "パソコンから、パスワードか自分の鍵でログイン。",

@@ -16,6 +16,8 @@
   "chips.lang.title": "आपकी भाषा में",
   "chips.native.text": "ls, cat, cp, grep, sha256sum, ps, sysinfo और भी, PS5 की अपनी फ़ाइलों पर।",
   "chips.native.title": "नेटिव शेल",
+  "chips.run.text": "<b>run</b> आपके ELF लोडर के ज़रिए टैब में PS5 ELF प्रोग्राम शुरू करता है, ncurses मेनू समेत।",
+  "chips.run.title": "PS5 प्रोग्राम",
   "chips.search.text": "आउटपुट में टेक्स्ट ढूँढें, उसे चुनें और फिर से पेस्ट करें।",
   "chips.search.title": "खोजें और कॉपी करें",
   "chips.ssh.text": "अपने कंप्यूटर से पासवर्ड या अपनी की से लॉग इन करें।",

@@ -4,8 +4,11 @@
 #include "guest_agent.hpp"
 #if defined(PS5TERM_LINUX_PERSISTENCE)
 #include "linux_data_disk.hpp"
+#include <cerrno>
 #include <cstdio>
+#include <cstring>
 #include <sys/stat.h>
+#include <unistd.h>
 #endif
 #if defined(PS5TERM_LINUX_SHARED_FOLDER)
 #include "linux_shared_folder.hpp"
@@ -142,6 +145,33 @@ class LinuxSubsystem
 #endif
         return 0;
     }
+    // The backup a growth left (data.ext2.backup), rounded up; 0 when there is none.
+    unsigned backup_mib() const noexcept
+    {
+#if defined(PS5TERM_LINUX_PERSISTENCE)
+        char path[1100];
+        struct stat st
+        {
+        };
+        if (std::snprintf(path, sizeof path, "%s/data.ext2.backup", data_directory_) <
+                static_cast<int>(sizeof path) &&
+            ::stat(path, &st) == 0 && S_ISREG(st.st_mode))
+            return static_cast<unsigned>((static_cast<std::uint64_t>(st.st_size) + 0xfffff) >> 20);
+#endif
+        return 0;
+    }
+    // Free the PS5's space: the PS5 keeps /data when the app is uninstalled, and other tools
+    // cannot remove these owner-only files. Both return 0 or an errno; never while growing.
+    int delete_backup() noexcept
+    {
+        return remove_storage(false);
+    }
+    // Also the disk itself: every environment and file in /mnt/data. Linux must be stopped;
+    // the next start makes a new 16 MiB disk.
+    int delete_storage() noexcept
+    {
+        return remove_storage(true);
+    }
     // Independent guest PTYs for SSH sessions. Call pump regularly while running.
     GuestAgent &agent() noexcept
     {
@@ -149,6 +179,30 @@ class LinuxSubsystem
     }
 
   private:
+    int remove_storage([[maybe_unused]] bool disk) noexcept
+    {
+#if defined(PS5TERM_LINUX_PERSISTENCE)
+        if (expansion_.busy() || (disk && running_))
+            return EBUSY;
+        int result = 0;
+        // Temporaries first (left only by an interrupted growth), the disk last.
+        for (const char *name : {"data.ext2.backup.new", "data.ext2.grow", "data.ext2.new",
+                                 "data.ext2.backup", "data.ext2"})
+        {
+            char path[1100];
+            if (!disk && std::strcmp(name, "data.ext2") == 0)
+                continue;
+            if (std::snprintf(path, sizeof path, "%s/%s", data_directory_, name) >=
+                static_cast<int>(sizeof path))
+                return ENAMETOOLONG;
+            if (::unlink(path) != 0 && errno != ENOENT)
+                result = errno;
+        }
+        return result;
+#else
+        return ENOTSUP;
+#endif
+    }
     GuestAgent agent_;
 #if defined(PS5TERM_LINUX_SUBSYSTEM)
     Ps5LinuxSession *session_ = nullptr;

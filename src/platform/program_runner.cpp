@@ -125,12 +125,15 @@ void install_terminfo(const char *source, const char *directory) noexcept
 }
 } // namespace
 
+ProgramRunner *ProgramRunner::launching_ = nullptr;
 ProgramRunner::~ProgramRunner()
 {
     close_all();
 }
 void ProgramRunner::close_all() noexcept
 {
+    if (launching_ == this)
+        launching_ = nullptr;
     close_fd(listener_);
     close_fd(loader_);
     close_fd(data_);
@@ -165,6 +168,17 @@ bool ProgramRunner::start(std::string_view arguments, std::string_view cwd, unsi
     if (arguments.empty() || arguments[0] != '/' || cwd.empty() || cwd[0] != '/')
     {
         fail("run: give the program's full path");
+        return false;
+    }
+    if (cwd.find('\n') != std::string_view::npos)
+    {
+        // The request is one value per line; a line break would become another value.
+        fail("run: this folder's name has a line break in it; cd somewhere else first");
+        return false;
+    }
+    if (launching_ && launching_ != this)
+    {
+        fail("run: another tab is starting a program; try again in a moment");
         return false;
     }
     // A fresh token, so only this launcher's connections are accepted.
@@ -235,14 +249,18 @@ bool ProgramRunner::start(std::string_view arguments, std::string_view cwd, unsi
         ::mkdir(directory, 0711);
         ::chmod(directory, 0711);
     }
-    const int file =
-        ::open(config_.request_path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC | O_NOFOLLOW, 0644);
-    const bool written = file >= 0 && ::fchmod(file, 0644) == 0 &&
-                         write_all(file, request.data(), static_cast<std::size_t>(size));
+    // Written whole, then renamed: a launcher never reads half a request.
+    char partial[540];
+    std::snprintf(partial, sizeof partial, "%s.new", config_.request_path);
+    const int file = ::open(partial, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC | O_NOFOLLOW, 0644);
+    bool written = file >= 0 && ::fchmod(file, 0644) == 0 &&
+                   write_all(file, request.data(), static_cast<std::size_t>(size));
     if (file >= 0)
         ::close(file);
+    written = written && ::rename(partial, config_.request_path) == 0;
     if (!written)
     {
+        ::unlink(partial);
         fail("run: cannot write /data/ps5term/run/request");
         return false;
     }
@@ -266,6 +284,7 @@ bool ProgramRunner::start(std::string_view arguments, std::string_view cwd, unsi
     no_sigpipe(loader_);
     deadline_ = now_ms() + config_.connect_timeout_ms;
     state_ = State::sending;
+    launching_ = this;
     return true;
 }
 void ProgramRunner::tick() noexcept
@@ -305,7 +324,9 @@ void ProgramRunner::tick() noexcept
         if (control_ >= 0)
             read_control();
         if (state_ == State::waiting && now_ms() >= deadline_)
-            fail("run: the launcher did not start (is the loader on 9021 an ELF loader?)");
+            fail(control_ >= 0 ? "run: the program did not start in time"
+                               : "run: the launcher did not start (is the loader on 9021 an "
+                                 "ELF loader?)");
         return;
     }
     if (state_ == State::running && control_ >= 0)
@@ -373,8 +394,15 @@ void ProgramRunner::accept_pending() noexcept
         if (pending.fd >= 0 && pending.size >= pending.line.size() - 1)
             close_fd(pending.fd);
     }
-    if (data_ >= 0 && control_ >= 0)
+    if (data_ >= 0 && control_ >= 0 && listener_ >= 0)
+    {
         close_fd(listener_);
+        // The request is consumed: another tab may launch, and this one now waits for the
+        // program to be read and loaded.
+        if (launching_ == this)
+            launching_ = nullptr;
+        deadline_ = now_ms() + config_.start_timeout_ms;
+    }
 }
 void ProgramRunner::read_control() noexcept
 {
@@ -470,6 +498,13 @@ IoResult ProgramRunner::write(const char *bytes, std::size_t size) noexcept
     if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
         return {0, IoState::would_block, 0};
     return {size, IoState::ok, 0}; // A program that stopped reading; its end follows.
+}
+bool ProgramRunner::cancel() noexcept
+{
+    if (state_ != State::sending && state_ != State::waiting)
+        return false;
+    fail("run: cancelled");
+    return true;
 }
 bool ProgramRunner::interrupt() noexcept
 {

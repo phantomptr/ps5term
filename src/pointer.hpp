@@ -344,6 +344,8 @@ enum class EnvButton
     grow_1,
     grow_2,
     grow_4,
+    delete_backup,
+    delete_disk,
     toggle_linux,
     back
 };
@@ -368,6 +370,7 @@ constexpr Rect env_grow(unsigned index) noexcept
 {
     return {96 + static_cast<int>(index) * 300, 772, 280, 44};
 }
+constexpr Rect env_delete_backup{96, 822, 440, 40}, env_delete_disk{556, 822, 440, 40};
 Rect env_button_rect(EnvButton button) noexcept;
 EnvButton env_button_at(int px, int py) noexcept;
 

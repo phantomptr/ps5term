@@ -16,6 +16,8 @@
   "chips.lang.title": "Dans ta langue",
   "chips.native.text": "ls, cat, cp, grep, sha256sum, ps, sysinfo et plus, sur les fichiers de la PS5.",
   "chips.native.title": "Shell natif",
+  "chips.run.text": "<b>run</b> lance un programme ELF PS5 dans l'onglet, menus ncurses compris, via ton chargeur ELF.",
+  "chips.run.title": "Programmes PS5",
   "chips.search.text": "Trouve du texte dans la sortie, sélectionne-le et recolle-le.",
   "chips.search.title": "Rechercher et copier",
   "chips.ssh.text": "Connecte-toi depuis ton ordinateur avec un mot de passe ou ta propre clé.",

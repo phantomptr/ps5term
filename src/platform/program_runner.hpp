@@ -33,6 +33,9 @@ class ProgramRunner
         const char *terminfo_directory = "/data/ps5term/terminfo";
         unsigned loader_port = 9021;
         std::uint64_t connect_timeout_ms = 10000;
+        // After the launcher has connected: reading a large program from slow storage and
+        // loading it can take much longer than the connection itself.
+        std::uint64_t start_timeout_ms = 120000;
     };
     enum class State
     {
@@ -66,7 +69,8 @@ class ProgramRunner
     IoResult read(char *bytes, std::size_t size) noexcept;        // the program's output
     IoResult write(const char *bytes, std::size_t size) noexcept; // its input
     bool interrupt() noexcept;                                    // SIGINT
-    void stop() noexcept; // Closes everything; the launcher then kills the program.
+    bool cancel() noexcept; // Give up a launch that has not started the program yet.
+    void stop() noexcept;   // Closes everything; the launcher then kills the program.
     State state() const noexcept
     {
         return state_;
@@ -109,6 +113,9 @@ class ProgramRunner
     std::array<char, 160> failure_{};
     bool killed_ = false;
     int status_ = 0;
+    // One request file serves every tab, so only one launch may be between writing it and
+    // its launcher connecting back.
+    static ProgramRunner *launching_;
     void fail(const char *reason) noexcept;
     void close_all() noexcept;
     void accept_pending() noexcept;

@@ -392,7 +392,8 @@ struct AppTest
              {EnvButton::default_base, EnvButton::open_alpine, EnvButton::default_alpine,
               EnvButton::remove_alpine, EnvButton::open_ubuntu, EnvButton::default_ubuntu,
               EnvButton::remove_ubuntu, EnvButton::grow_1, EnvButton::grow_2, EnvButton::grow_4,
-              EnvButton::toggle_linux, EnvButton::back})
+              EnvButton::delete_backup, EnvButton::delete_disk, EnvButton::toggle_linux,
+              EnvButton::back})
         {
             const auto r = ui::env_button_rect(button);
             assert(ui::env_button_at(r.x + 2, r.y + 2) == button);

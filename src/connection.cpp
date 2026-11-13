@@ -93,8 +93,8 @@ bool Connection::interrupt() noexcept
 {
     if (!connected())
         return false;
-    if (program_mode_)
-        return program_.interrupt(); // SIGINT, as a TTY would send on Ctrl+C.
+    if (program_mode_) // SIGINT, as a TTY would send on Ctrl+C; or give up a slow launch.
+        return program_.interrupt() || program_.cancel();
     if (native_ || linux_)
     {
         const char etx = '\x03';
@@ -162,7 +162,8 @@ platform::IoResult Connection::transport_write(void *context, const char *bytes,
         const char *interrupt = static_cast<const char *>(std::memchr(bytes, '\x03', size));
         if (interrupt == bytes)
         {
-            self.program_.interrupt();
+            if (!self.program_.interrupt())
+                self.program_.cancel();
             return {1, platform::IoState::ok, 0};
         }
         if (interrupt)

@@ -351,6 +351,10 @@ Rect env_button_rect(EnvButton button) noexcept
         return env_grow(1);
     case EnvButton::grow_4:
         return env_grow(2);
+    case EnvButton::delete_backup:
+        return env_delete_backup;
+    case EnvButton::delete_disk:
+        return env_delete_disk;
     case EnvButton::toggle_linux:
         return env_linux_switch;
     case EnvButton::back:

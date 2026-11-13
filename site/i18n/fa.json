@@ -16,6 +16,8 @@
   "chips.lang.title": "به زبان شما",
   "chips.native.text": "ls، cat، cp، grep، sha256sum، ps، sysinfo و بیشتر، روی فایل‌های خود PS5.",
   "chips.native.title": "پوستهٔ بومی",
+  "chips.run.text": "<b>run</b> یک برنامهٔ ELF مخصوص PS5 را در زبانه اجرا می‌کند، همراه با منوهای ncurses، از طریق بارگذار ELF شما.",
+  "chips.run.title": "برنامه‌های PS5",
   "chips.search.text": "متن را در خروجی پیدا کنید، انتخابش کنید و دوباره بچسبانید.",
   "chips.search.title": "جست‌وجو و کپی",
   "chips.ssh.text": "از رایانه‌تان با رمز عبور یا کلید خودتان وارد شوید.",

@@ -41,6 +41,19 @@ Checked against the catalog's `docs/submitting.md` and `catalog/verify.py` on 20
 
 Never replace a published asset. A fix is a new version with a new tag.
 
+## Release notes: 00.001.005
+
+- Free the space before uninstalling: Settings → Linux environments and storage now has
+  **Delete Linux disk...** and **Delete backup**. The PS5 keeps PS5Term's data folder after an
+  uninstall, and the Linux disk in it can be several GiB (issue #1).
+- Removing an environment is safer: it can no longer touch PS5 files if that environment is
+  opened while the removal runs.
+- Growing the Linux disk now fails cleanly when the PS5 is short of space, and keeps your
+  last good backup if an earlier growth did not finish.
+- Fixes: a Linux session slot lost each time Linux stopped while the environments screen was
+  refreshing; an install cut short no longer blocks the next one; `run` gives large programs
+  time to load, can be cancelled with Ctrl+C while starting, and passes empty arguments.
+
 ## Release notes: 00.001.004
 
 - New Linux environments screen (Settings → Linux environments): install and open Alpine

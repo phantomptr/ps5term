@@ -16,6 +16,8 @@
   "chips.lang.title": "На вашем языке",
   "chips.native.text": "ls, cat, cp, grep, sha256sum, ps, sysinfo и другие — прямо с файлами PS5.",
   "chips.native.title": "Нативная оболочка",
+  "chips.run.text": "<b>run</b> запускает ELF-программу PS5 во вкладке, включая меню ncurses, через ваш загрузчик ELF.",
+  "chips.run.title": "Программы PS5",
   "chips.search.text": "Найдите текст в выводе, выделите его и вставьте обратно.",
   "chips.search.title": "Поиск и копирование",
   "chips.ssh.text": "Входите с компьютера по паролю или своему ключу.",

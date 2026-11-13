@@ -16,6 +16,8 @@
   "chips.lang.title": "你的语言",
   "chips.native.text": "ls、cat、cp、grep、sha256sum、ps、sysinfo 等，直接操作 PS5 自己的文件。",
   "chips.native.title": "原生 shell",
+  "chips.run.text": "<b>run</b> 通过你的 ELF 加载器在标签页中启动 PS5 ELF 程序，ncurses 菜单也能用。",
+  "chips.run.title": "PS5 程序",
   "chips.search.text": "在输出中查找文字，选中后再粘贴回去。",
   "chips.search.title": "搜索和复制",
   "chips.ssh.text": "从你的电脑用密码或你自己的密钥登录。",

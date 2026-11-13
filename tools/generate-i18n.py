@@ -354,6 +354,10 @@ def main():
                 continue
             if PRINTF.findall(value) != PRINTF.findall(key):
                 problems.append(f'{code}: {key!r} needs the same printf conversions in the same order')
+            if code in ('ar', 'fa') and re.search(r'[(\[]\s*%', value):
+                # Right-to-left text is drawn piece by piece; a bracket opened in the text and
+                # closed after a value comes out unbalanced ("(512 MiB))"). Use a colon.
+                problems.append(f'{code}: {key!r} must not put a value in brackets: write ": %u" instead')
             bad = [] if code in RENDERED else sorted({ch for ch in value if ord(ch) > 126 and ord(ch) not in drawable})
             if bad:
                 problems.append(f'{code}: {key!r} uses characters the font lacks: {"".join(bad)}')

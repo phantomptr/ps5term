@@ -37,6 +37,16 @@ head -c 4096 /dev/urandom >/tmp/not-alpine.tar.gz
 ! ps5term-env default alpine 2>/dev/null || fail 'made an absent environment the default'
 ! ps5term-env install debian 2>/dev/null || fail 'accepted an unknown name'
 
+# What an install cut short by power loss leaves behind does not block the next one.
+mkdir -p /mnt/data/.ps5term-env-alpine.install/etc
+echo junk >/mnt/data/.ps5term-env-alpine.download
+# A damaged default file means Base, not an error.
+: >/mnt/data/.ps5term-env-default
+[ "$(ps5term-env default)" = base ] || fail 'empty default file'
+echo gentoo >/mnt/data/.ps5term-env-default
+ps5term-env list --json | grep -q '^{"default":"base"' || fail 'unknown default not base'
+rm -f /mnt/data/.ps5term-env-default
+
 # Install from the verified archive, saying what it does.
 ps5term-env install alpine "$archive" >/tmp/install.out
 grep -q '^Checking the download...$' /tmp/install.out &&
@@ -75,13 +85,39 @@ wait "$inside" 2>/dev/null || true
 for _ in 1 2 3 4 5; do pgrep -x sleep >/dev/null || break; sleep 1; done
 ps5term-env remove alpine >/dev/null
 [ ! -e /mnt/data/alpine ] || fail 'folder still there'
+! ls -d /mnt/data/.ps5term-env-*.removing 2>/dev/null || fail 'removal leftovers'
+[ ! -e /run/ps5term-env-mount ] || fail 'mount lock left behind'
 [ -f /mnt/data/keep-me ] || fail 'removed something else'
 ! grep -q ' /mnt/data/alpine/' /proc/mounts || fail 'binds left mounted'
 [ "$(ps5term-env default)" = base ] || fail 'default not reset to base after removal'
 ps5term-env list --json | grep -q '"name":"alpine",[^}]*"state":"absent"' || fail 'still listed'
 
+# A removal never follows a mount: with something still mounted inside, it refuses and the
+# folder (and what is mounted there) stays.
+ps5term-env install alpine "$archive" >/dev/null
+mkdir -p /tmp/precious && touch /tmp/precious/file
+mount --bind /tmp/precious /mnt/data/alpine/mnt
+( cd /mnt/data/alpine/mnt && sleep 20 ) &
+holder=$!
+sleep 1
+ps5term-env remove alpine >/dev/null 2>&1 || true
+kill "$holder" 2>/dev/null || true
+wait "$holder" 2>/dev/null || true
+[ -f /tmp/precious/file ] || fail 'a removal deleted through a mount'
+umount /mnt/data/alpine/mnt 2>/dev/null || true
+ps5term-env remove alpine >/dev/null 2>&1 || true
+[ -f /tmp/precious/file ] || fail 'a removal deleted through a mount (second try)'
+[ ! -e /mnt/data/alpine ] || fail 'not removed once unmounted'
+# Two shells opening at once wait for each other instead of failing.
+ps5term-env install alpine "$archive" >/dev/null
+ps5term-env run alpine true &
+first=$!
+ps5term-env run alpine true || fail 'second concurrent run failed'
+wait "$first" || fail 'first concurrent run failed'
+ps5term-env remove alpine >/dev/null
+
 # Not enough room: refused before downloading anything.
 mount -o remount,size=40m /mnt/data
 ! ps5term-env install alpine "$archive" 2>/tmp/space.err || fail 'installed without room'
 grep -q 'needs 64 MiB free' /tmp/space.err || fail "space message: $(cat /tmp/space.err)"
-echo 'PASS: ps5term-env list, verified install, run, default, in-use refusal, remove, space check'
+echo 'PASS: ps5term-env list, verified install, leftovers, run, default, in-use and mount-safe remove, space check'

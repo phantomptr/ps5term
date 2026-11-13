@@ -369,48 +369,88 @@ void LinuxDiskExpansion::expand() noexcept
             uint64_t(blocks) * (uint64_t(1024) << shift) > static_cast<uint64_t>(st.st_size))
             return EINVAL;
         (void)::unlink(stale);
-        // An older backup is replaced once the new one is complete: the newest copy of the
-        // disk is the useful rollback, and keeping both would need twice the PS5 space.
-        // A crash mid-copy can leave an incomplete temporary; it never holds anything the
-        // live disk lacks, so replace it rather than refusing every later expansion.
-        (void)::unlink(temporary_backup);
-        out = ::open(temporary_backup, flags() | O_CREAT | O_EXCL, 0600);
-        if (out < 0)
-            return errno;
-        own_backup = true;
-        off_t offset = 0;
-        while (offset < st.st_size)
+        (void)::unlink(temporary_backup); // A crash mid-copy can leave an incomplete one.
+        // The work is the bytes written: the backup copy, then the new space.
+        uint64_t written = 0;
+        const auto step = [&](uint64_t count)
         {
-            const size_t count = static_cast<size_t>(
-                std::min<off_t>(static_cast<off_t>(chunk), st.st_size - offset));
-            ssize_t got = ::pread(original, bytes, count, offset);
-            if (got < 0 && errno == EINTR)
-                continue;
-            if (got <= 0)
-                return got ? errno : EIO;
-            ssize_t done = 0;
-            while (done < got)
+            written += count;
+            progress_.store(static_cast<unsigned>(written * 99 / target));
+        };
+        // If an earlier growth never finished (the file is larger than its filesystem: the
+        // guest's resize did not complete), an existing backup is the last copy known to be
+        // good. Keep it rather than replace it with a disk that may be damaged.
+        const bool resize_pending =
+            uint64_t(blocks) * (uint64_t(1024) << shift) < static_cast<uint64_t>(st.st_size);
+        const int existing = ::open(backup, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC);
+        if (existing >= 0)
+            ::close(existing);
+        if (existing >= 0 && resize_pending)
+            step(static_cast<uint64_t>(st.st_size));
+        else
+        {
+            // Otherwise the newest copy is the useful rollback; keeping both would need
+            // twice the PS5 space. The old backup is replaced only once the new one is whole.
+            out = ::open(temporary_backup, flags() | O_CREAT | O_EXCL, 0600);
+            if (out < 0)
+                return errno;
+            own_backup = true;
+            off_t offset = 0;
+            while (offset < st.st_size)
             {
-                ssize_t wrote = ::pwrite(out, bytes + done, got - done, offset + done);
-                if (wrote < 0 && errno == EINTR)
+                const size_t count = static_cast<size_t>(
+                    std::min<off_t>(static_cast<off_t>(chunk), st.st_size - offset));
+                ssize_t got = ::pread(original, bytes, count, offset);
+                if (got < 0 && errno == EINTR)
                     continue;
-                if (wrote <= 0)
-                    return wrote ? errno : EIO;
-                done += wrote;
+                if (got <= 0)
+                    return got ? errno : EIO;
+                ssize_t done = 0;
+                while (done < got)
+                {
+                    ssize_t wrote = ::pwrite(out, bytes + done, got - done, offset + done);
+                    if (wrote < 0 && errno == EINTR)
+                        continue;
+                    if (wrote <= 0)
+                        return wrote ? errno : EIO;
+                    done += wrote;
+                }
+                offset += got;
+                step(static_cast<uint64_t>(got));
             }
-            offset += got;
-            progress_.store(static_cast<unsigned>(uint64_t(offset) * 95 / st.st_size));
+            if (!sync_fd(out))
+                return errno;
+            if (::rename(temporary_backup, backup) || !sync_fd(parent))
+                return errno;
+            own_backup = false;
         }
-        if (!sync_fd(out))
-            return errno;
-        // The completed copy becomes the persistent rollback before the live disk changes.
-        if (::rename(temporary_backup, backup) || !sync_fd(parent))
-            return errno;
-        own_backup = false;
         // Growing only adds zeroed space at the end; the guest's resize2fs uses it at the
-        // next boot. A failure here leaves the disk at its old size, still usable.
-        if (::ftruncate(original, static_cast<off_t>(target)) || !sync_fd(original))
-            return errno;
+        // next boot. The zeroes are written, not left as a hole: a PS5 drive without room
+        // fails here, cleanly, instead of under a mounted filesystem later. A failure puts
+        // the disk back at its old size, still usable.
+        std::memset(bytes, 0, chunk);
+        uint64_t end = static_cast<uint64_t>(st.st_size);
+        while (end < target)
+        {
+            const size_t count = static_cast<size_t>(std::min<uint64_t>(chunk, target - end));
+            const ssize_t wrote = ::pwrite(original, bytes, count, static_cast<off_t>(end));
+            if (wrote < 0 && errno == EINTR)
+                continue;
+            if (wrote <= 0)
+            {
+                const int reason = wrote ? errno : EIO;
+                (void)::ftruncate(original, st.st_size);
+                return reason;
+            }
+            end += static_cast<uint64_t>(wrote);
+            step(static_cast<uint64_t>(wrote));
+        }
+        if (!sync_fd(original))
+        {
+            const int reason = errno;
+            (void)::ftruncate(original, st.st_size);
+            return reason;
+        }
         progress_.store(100);
         return 0;
     };

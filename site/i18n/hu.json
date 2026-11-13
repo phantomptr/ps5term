@@ -16,6 +16,8 @@
   "chips.lang.title": "A te nyelveden",
   "chips.native.text": "ls, cat, cp, grep, sha256sum, ps, sysinfo és még sok más, a PS5 saját fájljain.",
   "chips.native.title": "Natív shell",
+  "chips.run.text": "A <b>run</b> PS5 ELF programot indít a lapon, ncurses menükkel együtt, az ELF-betöltődön keresztül.",
+  "chips.run.title": "PS5-programok",
   "chips.search.text": "Keress szöveget a kimenetben, jelöld ki, és illeszd be újra.",
   "chips.search.title": "Keresés és másolás",
   "chips.ssh.text": "Jelentkezz be a számítógépedről jelszóval vagy a saját kulcsoddal.",

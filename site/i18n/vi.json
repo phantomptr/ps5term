@@ -16,6 +16,8 @@
   "chips.lang.title": "Bằng ngôn ngữ của bạn",
   "chips.native.text": "ls, cat, cp, grep, sha256sum, ps, sysinfo và nhiều lệnh khác, trên chính các tệp của PS5.",
   "chips.native.title": "Shell native",
+  "chips.run.text": "<b>run</b> khởi chạy một chương trình ELF của PS5 ngay trong tab, kể cả menu ncurses, thông qua ELF loader của bạn.",
+  "chips.run.title": "Chương trình PS5",
   "chips.search.text": "Tìm chữ trong kết quả, chọn rồi dán lại.",
   "chips.search.title": "Tìm và sao chép",
   "chips.ssh.text": "Đăng nhập từ máy tính bằng mật khẩu hoặc khóa của riêng bạn.",

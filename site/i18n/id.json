@@ -16,6 +16,8 @@
   "chips.lang.title": "Dalam bahasamu",
   "chips.native.text": "ls, cat, cp, grep, sha256sum, ps, sysinfo, dan lainnya, pada file PS5 sendiri.",
   "chips.native.title": "Shell native",
+  "chips.run.text": "<b>run</b> menjalankan program ELF PS5 di tab, termasuk menu ncurses, melalui ELF loader Anda.",
+  "chips.run.title": "Program PS5",
   "chips.search.text": "Cari teks di output, pilih, lalu tempel kembali.",
   "chips.search.title": "Cari dan salin",
   "chips.ssh.text": "Masuk dari komputer Anda dengan kata sandi atau kunci Anda sendiri.",

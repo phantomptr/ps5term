@@ -21,6 +21,7 @@ name the keys of the input used last: keyboard, mouse or controller.
 | Choose /mnt/ps5: /data or / | Settings: focus PS5 files, Enter/Space | PS5 files button | Focus PS5 files, Cross |
 | Linux environments (Alpine, Ubuntu): install, open, make default, remove | Settings: focus Linux environments, Enter; then Tab/arrows, Enter, Esc back | Linux environments button, then its buttons; right-click back | Focus Linux environments, Cross; D-pad, Cross, Circle back |
 | Grow persistent storage to 1, 2 or 4 GiB | Linux environments: focus Grow to, Enter (Linux stopped) | Grow to button | Focus Grow to, Cross (Linux stopped) |
+| Delete the Linux disk or its backup (frees PS5 space; do it before uninstalling) | Linux environments: focus Delete, Enter twice | Delete button, twice | Focus Delete, Cross twice |
 | Run a PS5 program in the tab ([PS5_PROGRAMS.md](PS5_PROGRAMS.md)) | `run PATH [ARGS]` in the built-in shell; Ctrl+C interrupts | Interrupt button | L2+Circle interrupts |
 | Text size | Settings: focus Text, Enter | Text size button | Focus Text, Cross |
 | Language (Auto follows the PS5) | Settings: focus Language, Enter | Language button | Focus Language, Cross |
@@ -38,7 +39,7 @@ name the keys of the input used last: keyboard, mouse or controller.
 | Find text in retained output | Ctrl+Shift+F; type query; Enter/Down next, Up previous, F5 refresh, Esc close | Right-click → Find text; Previous/Next/Refresh/Close buttons | L3 → Find text; Triangle types; L1/R1 cycle; Circle closes |
 | Scroll output | Page Up/Down in the built-in shell; Shift+Page Up/Down in Linux | Wheel; Shift+wheel for pages | D-pad |
 | Mouse in programs | - | Programs that ask get the mouse; hold Shift, or use Select text, to select | - |
-| Stop Linux, Grow storage, Remove an environment (confirm) | Press again within 5 s | Click again | Cross again |
+| Stop Linux, Grow storage, Remove an environment, Delete disk or backup (confirm) | Press again within 5 s | Click again | Cross again |
 | Close Settings | Esc or focus Back, Enter | Back or right-click | Circle |
 | About (credits, version, disclaimer) | F1 in Settings, or focus About PS5Term; Esc back | About PS5Term; Back or right-click | Focus About PS5Term, Cross; Circle back |
 

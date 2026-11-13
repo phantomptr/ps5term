@@ -72,6 +72,18 @@ class Connection
     {
         return linux_vm_.storage_error();
     }
+    unsigned storage_backup_mib() const noexcept
+    {
+        return linux_vm_.backup_mib();
+    }
+    int delete_linux_backup() noexcept
+    {
+        return linux_vm_.delete_backup();
+    }
+    int delete_linux_storage() noexcept
+    {
+        return linux_vm_.delete_storage();
+    }
     // The Linux data disk's size in MiB; 0 when there is none yet.
     unsigned storage_mib() const noexcept
     {

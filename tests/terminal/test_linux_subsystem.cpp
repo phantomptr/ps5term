@@ -5,6 +5,7 @@
 #include "net/nat.h"
 #include <arpa/inet.h>
 #include <cassert>
+#include <cerrno>
 struct Ps5LinuxNat
 {
 };
@@ -244,6 +245,10 @@ int main()
         assert(network_live == 1); // Failed join must retain the borrowed backend.
 #endif
         assert(!vm.start(80, 24) && live == 1);
+#if defined(PS5TERM_LINUX_PERSISTENCE)
+        // The running guest's disk cannot be deleted from under it.
+        assert(vm.delete_storage() == EBUSY && vm.storage_mib() == 16);
+#endif
         fail_stop = false;
         assert(vm.stop());
         assert(vm.stop());
@@ -300,6 +305,35 @@ int main()
         assert(symlink("root-riscv64.bin", (base + "bbl64.bin").c_str()) == 0);
         assert(!vm.start(80, 24) && live == 0);
     }
+#if defined(PS5TERM_LINUX_PERSISTENCE)
+    {
+        // Freeing the PS5's space (the PS5 keeps /data after an uninstall): the backup can go
+        // at any time, the disk only while Linux is stopped; nothing else in the folder is
+        // touched, and the next start seeds a new disk.
+        term::platform::LinuxSubsystem vm(dir, data_directory.c_str(), shared_directory.c_str(),
+                                          console_directory.c_str());
+        const std::string disk = data_directory + "/data.ext2", backup = disk + ".backup",
+                          other = data_directory + "/resolver";
+        struct stat info
+        {
+        };
+        assert(stat(disk.c_str(), &info) == 0 && vm.storage_mib() == 16);
+        assert(vm.backup_mib() == 0 && vm.delete_backup() == 0); // nothing to delete is fine
+        put(backup, std::vector<unsigned char>(3 * 1024 * 1024 + 1));
+        put(disk + ".backup.new", std::vector<unsigned char>(10));
+        std::ofstream(other) << "1.1.1.1";
+        assert(vm.backup_mib() == 4); // rounded up: never shown as 0 while it exists
+        assert(vm.delete_backup() == 0 && vm.backup_mib() == 0);
+        assert(stat(backup.c_str(), &info) != 0 &&
+               stat((disk + ".backup.new").c_str(), &info) != 0);
+        assert(stat(disk.c_str(), &info) == 0 && stat(other.c_str(), &info) == 0);
+        put(backup, std::vector<unsigned char>(100));
+        assert(vm.delete_storage() == 0 && vm.storage_mib() == 0 && vm.backup_mib() == 0);
+        assert(stat(disk.c_str(), &info) != 0 && stat(other.c_str(), &info) == 0);
+        assert(vm.delete_storage() == 0); // again: already gone
+        unlink(other.c_str());
+    }
+#endif
     for (auto name : {"bbl64.bin", "kernel-riscv64.bin", "root-riscv64.bin"})
         unlink((base + name).c_str());
 #if defined(PS5TERM_LINUX_PERSISTENCE)

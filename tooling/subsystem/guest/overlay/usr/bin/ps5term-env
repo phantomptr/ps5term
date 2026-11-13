@@ -66,13 +66,50 @@ state() { # installed | absent
  [ -f "$ROOT/$MARKER" ] && echo installed || echo absent
 }
 
-current_default() {
- [ -r "$DEFAULT_FILE" ] && cat "$DEFAULT_FILE" 2>/dev/null || echo base
+current_default() { # base unless the saved choice names an installed environment
+ chosen=$(cat "$DEFAULT_FILE" 2>/dev/null || true)
+ for known in $NAMES; do
+  if [ "$chosen" = "$known" ] && [ "$(state "$known")" = installed ]; then
+   echo "$known"; return 0
+  fi
+ done
+ echo base
+}
+save_default() { # whole or not at all
+ echo "$1" >"$DEFAULT_FILE.new" && mv "$DEFAULT_FILE.new" "$DEFAULT_FILE"
+}
+
+# One at a time for anything that mounts into, or removes, an environment's folder. Waits a
+# little: two shells opening at once is normal (a new tab right after Linux starts).
+mount_lock() {
+ tries=0
+ until mkdir /run/ps5term-env-mount 2>/dev/null; do
+  tries=$((tries + 1))
+  [ "$tries" -lt 10 ] || fail 'mount setup busy; retry shortly'
+  sleep 1
+ done
+}
+mounts_under() { awk -v r="$1/" 'index($2, r) == 1 {found=1} END {exit !found}' /proc/mounts; }
+in_use() { # a process whose root is this folder
+ for proc in /proc/[0-9]*; do
+  [ "$(readlink "$proc/root" 2>/dev/null)" != "$1" ] || return 0
+ done
+ return 1
+}
+# Folders a removal or install left behind when the app closed or the power went: nothing
+# can be inside them (they are never entered under these names), so they are safe to clear.
+clear_leftovers() {
+ for stale in "$DATA"/.ps5term-env-*.removing "$DATA"/.ps5term-env-*.install; do
+  [ -d "$stale" ] || continue
+  mounts_under "$stale" && continue
+  rm -rf "$stale"
+ done
+ rm -f "$DATA"/.ps5term-env-*.download
 }
 
 bind_mounts() { # set up proc/sys/dev(/pts) and /mnt/ps5 inside $1, once
  root=$1
- mkdir /run/ps5term-env-mount 2>/dev/null || fail 'mount setup busy; retry shortly'
+ mount_lock
  trap 'rmdir /run/ps5term-env-mount' EXIT
  trap 'exit 130' HUP INT TERM
  for path in proc sys dev; do
@@ -146,8 +183,11 @@ case "$command" in
    fail "$TITLE needs $((NEED / 1024)) MiB free and $((available / 1024)) MiB are free; expand storage"
   mkdir /run/ps5term-env-install 2>/dev/null || fail 'another installation is running'
   stage=$DATA/.ps5term-env-$name.install; archive=$DATA/.ps5term-env-$name.download
+  # Holding the lock (kept in /run, so gone after a restart) means no install is running:
+  # staging files are leftovers of one that was cut short.
+  clear_leftovers
   [ ! -e "$stage" ] && [ ! -e "$archive" ] ||
-   { rmdir /run/ps5term-env-install; fail 'leftover staging files; inspect them before retrying'; }
+   { rmdir /run/ps5term-env-install; fail 'cannot clear old staging files; check /mnt/data'; }
   cleanup() { rm -f "$archive"; rm -rf "$stage"; rmdir /run/ps5term-env-install; }
   trap cleanup EXIT
   trap 'exit 130' HUP INT TERM
@@ -196,13 +236,27 @@ case "$command" in
   name=${1:?usage: ps5term-env remove <name>}
   manifest "$name"
   [ -d "$ROOT" ] || fail "$TITLE is not installed"
-  for proc in /proc/[0-9]*; do
-   [ "$(readlink "$proc/root" 2>/dev/null)" != "$ROOT" ] ||
-    fail "$TITLE is still in use (a shell or SSH session is inside it); exit it first"
-  done
+  # Deleting must never reach the PS5's files bound at mnt/ps5. Under the mount lock: check
+  # nothing is inside, unmount, and move the folder to a name nothing ever enters; only then
+  # delete, so a shell opened meanwhile finds no environment instead of mounting into it.
+  trash=$DATA/.ps5term-env-$name.removing
+  mount_lock
+  trap 'rmdir /run/ps5term-env-mount 2>/dev/null' EXIT
+  trap 'exit 130' HUP INT TERM
+  [ ! -e "$trash" ] || mounts_under "$trash" || rm -rf "$trash"
+  [ ! -e "$trash" ] || fail 'an earlier removal is unfinished and still has mounts; restart Linux'
+  ! in_use "$ROOT" ||
+   fail "$TITLE is still in use (a shell or SSH session is inside it); exit it first"
   unbind_mounts "$ROOT" || fail "$TITLE is still in use; exit it first"
-  [ "$(current_default)" != "$name" ] || echo base >"$DEFAULT_FILE"
-  rm -rf "$ROOT"
+  [ "$(current_default)" != "$name" ] || save_default base
+  mv "$ROOT" "$trash"
+  if in_use "$trash" || mounts_under "$trash"; then
+   mv "$trash" "$ROOT"
+   fail "$TITLE is still in use; exit it first"
+  fi
+  rmdir /run/ps5term-env-mount
+  trap - EXIT HUP INT TERM
+  rm -rf "$trash"
   sync
   echo "$TITLE removed."
   ;;
@@ -213,7 +267,7 @@ case "$command" in
    base) ;;
    *) [ "$(state "$1")" = installed ] || fail "$1 is not installed" ;;
   esac
-  echo "$1" >"$DEFAULT_FILE"
+  save_default "$1"
   echo "New Linux shells start in: $1"
   ;;
 

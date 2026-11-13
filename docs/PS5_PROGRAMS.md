@@ -29,6 +29,7 @@ The PS5 has no pseudo-terminal (TTY) for programs, so PS5Term acts as the termin
 | Full screen (the program switches screens, as ncurses does) | Each key goes straight to the program, arrows and function keys included |
 | **Ctrl+C** or the Interrupt button | Sends SIGINT |
 | Closing the tab, or Reconnect | Stops the program |
+| A launch that hangs | Ctrl+C gives the tab back; one tab launches at a time (a second waits its turn) |
 | Screen size | `COLUMNS` and `LINES` give the tab's size when it starts; it does not follow a later resize |
 | `TERM` | `xterm-256color`, with its terminfo entry in `/data/ps5term/terminfo` (`TERMINFO`) |
 

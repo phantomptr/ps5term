@@ -16,6 +16,8 @@
   "chips.lang.title": "W twoim języku",
   "chips.native.text": "ls, cat, cp, grep, sha256sum, ps, sysinfo i więcej, na własnych plikach PS5.",
   "chips.native.title": "Natywna powłoka",
+  "chips.run.text": "<b>run</b> uruchamia program ELF dla PS5 w karcie, razem z menu ncurses, przez twój loader ELF.",
+  "chips.run.title": "Programy PS5",
   "chips.search.text": "Znajdź tekst w wyjściu, zaznacz go i wklej z powrotem.",
   "chips.search.title": "Szukaj i kopiuj",
   "chips.ssh.text": "Zaloguj się z komputera hasłem lub własnym kluczem.",
